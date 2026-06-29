@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isAuthPage = pathname === '/login';
   const isAuthApi = pathname.startsWith('/api/auth');
 
   // Protect backend API routes (excluding auth endpoints)

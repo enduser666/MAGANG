@@ -1,18 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { DatabaseZap, Loader2, Lock, User, AlertCircle, Sun, Moon } from 'lucide-react';
+import { useDb } from '@/context/DbContext';
+import { Lock, Mail, ShieldAlert, KeyRound, Loader2, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const { getHeaders, dbType, connectionStatus } = useDb();
+  
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Check session on mount, if valid redirect to home
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          router.push('/');
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,132 +32,189 @@ export default function Login() {
     setErrorMsg('');
 
     try {
-      // Get DB configuration headers from local storage to connect to correct database
-      const dbType = localStorage.getItem('db_type') || 'sandbox';
-      const dbConfig = localStorage.getItem('db_config');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-db-type': dbType,
-      };
-      if (dbType === 'mysql' && dbConfig) {
-        headers['x-db-config'] = Buffer.from(dbConfig).toString('base64');
-      }
-
+      const headers = getHeaders();
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ username, password }),
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ username, password })
       });
 
       const data = await res.json();
       if (data.success) {
-        // Redirect to dashboard home
         router.push('/');
         router.refresh();
       } else {
-        setErrorMsg(data.message || 'Invalid username or password.');
+        setErrorMsg(data.message || 'Username atau password salah.');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to contact authentication server.');
+      setErrorMsg('Kesalahan server saat mencoba login.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-background text-foreground transition-colors duration-200 p-4">
-      {/* Theme Toggle Top Right */}
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="p-2.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-      </div>
+  const handleSsoClick = () => {
+    setLoading(true);
+    setErrorMsg('');
+    
+    // Simulate Ministry SSO Login flow: auto login as 'auditor' role
+    setTimeout(async () => {
+      try {
+        const headers = getHeaders();
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ username: 'auditor', password: 'admin' }) // Use pre-seeded auditor
+        });
 
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo/Brand */}
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="bg-primary text-primary-foreground p-2.5 rounded-xl shadow-lg shadow-primary/20">
-            <DatabaseZap className="h-8 w-8" />
+        const data = await res.json();
+        if (data.success) {
+          router.push('/');
+          router.refresh();
+        } else {
+          setErrorMsg('Kemenkeu SSO Auth failed.');
+        }
+      } catch (err: any) {
+        setErrorMsg('SSO Server unreachable.');
+      } finally {
+        setLoading(false);
+      }
+    }, 1200);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] dark:bg-[#0B0F19]">
+      
+      {/* Left side panel: MoF Branding */}
+      <div className="w-full md:w-1/2 bg-[#0F172A] text-slate-200 p-8 sm:p-16 flex flex-col justify-between relative overflow-hidden min-h-[300px] md:min-h-screen">
+        {/* Background wave decoration */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-900/40 via-transparent to-transparent pointer-events-none" />
+        
+        {/* Top brand metadata */}
+        <div className="flex items-center gap-3.5 relative z-10">
+          <div className="h-11 w-11 relative overflow-hidden bg-white/10 p-2 rounded-xl flex items-center justify-center shadow-lg">
+            <img src="/logo.png" alt="Kemenkeu Logo" className="h-8 w-8 object-contain" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Migrator Pro</h1>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Enterprise Dashboard Login</p>
+            <h1 className="font-extrabold text-xl tracking-tight text-white leading-none">SIDATA</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sistem Integrasi Data Pengawasan</p>
           </div>
         </div>
 
-        {/* Card Form */}
-        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold">Sign In</h2>
-              <p className="text-xs text-muted-foreground">Access your migration pipelines and audits.</p>
+        {/* Center message */}
+        <div className="my-auto py-12 relative z-10 max-w-md">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20 mb-4">
+            Inspektorat Jenderal Kemenkeu RI
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            Centralized Data Governance & Ingestion
+          </h2>
+          <p className="text-sm text-slate-400 mt-4 leading-relaxed">
+            Platform pengawasan internal terintegrasi untuk Kementerian Keuangan Republik Indonesia. Membantu sinkronisasi spreadsheet hasil temuan audit langsung ke database PostgreSQL serta menyajikan analisis dashboard bagi pimpinan.
+          </p>
+        </div>
+
+        {/* Footer credits */}
+        <div className="text-xs text-slate-500 relative z-10 pt-4 border-t border-slate-800">
+          Secure Access • Inspektorat Jenderal Kementerian Keuangan Republik Indonesia © 2026
+        </div>
+      </div>
+
+      {/* Right side panel: Login Forms */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-12 min-h-[400px]">
+        <div className="w-full max-w-md space-y-8 bg-white dark:bg-[#111827] p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md">
+          
+          <div className="space-y-2">
+            <h3 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Welcome Back
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Silakan masuk ke akun SIDATA Anda menggunakan kredensial internal.
+            </p>
+          </div>
+
+          {errorMsg && (
+            <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-3.5 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2.5 animate-bounce">
+              <ShieldAlert className="h-4.5 w-4.5 flex-shrink-0" />
+              <span>{errorMsg}</span>
             </div>
+          )}
 
-            {errorMsg && (
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {/* Username */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-muted-foreground">Username</label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Username Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Email / Username</label>
               <div className="relative">
-                <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
                 <input
                   type="text"
                   required
+                  placeholder="name@kemenkeu.go.id"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="analyst"
-                  className="w-full rounded-lg border border-border bg-background pl-9 pr-4 py-2 text-sm text-foreground focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-muted-foreground/40"
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-muted-foreground">Password</label>
+            {/* Password Input */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Password</label>
+                <a href="#" className="text-xs text-[#1D4ED8] hover:underline">Forgot password?</a>
+              </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
                 <input
                   type="password"
                   required
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-border bg-background pl-9 pr-4 py-2 text-sm text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
                 />
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* Login button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/95 transition-all disabled:opacity-50 mt-2"
+              className="w-full bg-[#1D4ED8] hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-sm transition-all shadow-md shadow-blue-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Sign In to Platform
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>Sign In <ArrowRight className="h-4 w-4" /></>
+              )}
             </button>
           </form>
 
-          {/* Registration link */}
-          <div className="border-t border-border mt-6 pt-4 text-center text-xs text-muted-foreground">
-            Don't have an account?{' '}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              Register here
-            </Link>
+          {/* SSO trigger option */}
+          <div className="relative flex items-center justify-center my-6">
+            <div className="absolute inset-0 border-t border-slate-200 dark:border-slate-800" />
+            <span className="relative px-3 bg-white dark:bg-[#111827] text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              OR CONTINUE WITH
+            </span>
           </div>
-        </div>
 
-        {/* Local database provider info */}
-        <div className="text-center text-[10px] text-muted-foreground/70">
-          Security policy: Credentials will save to whichever database is currently active in localStorage.
+          <button
+            onClick={handleSsoClick}
+            disabled={loading}
+            className="w-full border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <svg className="h-4.5 w-4.5 text-[#1D4ED8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                Single Sign-On (SSO) Kemenkeu
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
