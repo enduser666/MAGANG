@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export interface MySqlConfig {
+export interface PgConfig {
   host: string;
   port: number;
   user: string;
@@ -10,18 +10,18 @@ export interface MySqlConfig {
   database: string;
 }
 
-export type DbType = 'mysql' | 'sandbox';
+export type DbType = 'postgres' | 'sandbox';
 export type ConnectionStatus = 'disconnected' | 'connected' | 'error' | 'testing';
 
 interface DbContextType {
   dbType: DbType;
-  dbConfig: MySqlConfig | null;
+  dbConfig: PgConfig | null;
   dbConfigBase64: string | null;
   connectionStatus: ConnectionStatus;
   connectionMessage: string;
   setDbType: (type: DbType) => void;
-  updateDbConfig: (config: MySqlConfig | null) => void;
-  testConnection: (config: MySqlConfig) => Promise<{ success: boolean; message: string }>;
+  updateDbConfig: (config: PgConfig | null) => void;
+  testConnection: (config: PgConfig) => Promise<{ success: boolean; message: string }>;
   initializeSchema: () => Promise<{ success: boolean; message: string }>;
   disconnect: () => void;
   getHeaders: () => Record<string, string>;
@@ -31,10 +31,10 @@ const DbContext = createContext<DbContextType | undefined>(undefined);
 
 export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dbType, setDbTypeState] = useState<DbType>('sandbox');
-  const [dbConfig, setDbConfigState] = useState<MySqlConfig | null>(null);
+  const [dbConfig, setDbConfigState] = useState<PgConfig | null>(null);
   const [dbConfigBase64, setDbConfigBase64] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
-  const [connectionMessage, setConnectionMessage] = useState<string>('Using local sandbox mode.');
+  const [connectionMessage, setConnectionMessage] = useState<string>('Menggunakan Mode Sandbox Lokal (Kemenkeu).');
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -51,27 +51,27 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         const base64 = Buffer.from(JSON.stringify(parsed)).toString('base64');
         setDbConfigBase64(base64);
         
-        if (savedType === 'mysql') {
+        if (savedType === 'postgres') {
           // Attempt to test connection silently on load
           setConnectionStatus('testing');
           fetch('/api/db/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dbType: 'mysql', dbConfig: base64 })
+            body: JSON.stringify({ dbType: 'postgres', dbConfig: base64 })
           })
             .then(res => res.json())
             .then(data => {
               if (data.success) {
                 setConnectionStatus('connected');
-                setConnectionMessage('Connected to MySQL server.');
+                setConnectionMessage('Terhubung ke database PostgreSQL.');
               } else {
                 setConnectionStatus('error');
-                setConnectionMessage(data.message || 'Failed to reach MySQL server.');
+                setConnectionMessage(data.message || 'Gagal terhubung ke database PostgreSQL.');
               }
             })
             .catch(() => {
               setConnectionStatus('error');
-              setConnectionMessage('Failed to connect to backend.');
+              setConnectionMessage('Gagal terhubung ke backend API.');
             });
         }
       } catch (e) {
@@ -86,36 +86,36 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     localStorage.setItem('db_type', type);
     if (type === 'sandbox') {
       setConnectionStatus('disconnected');
-      setConnectionMessage('Using local sandbox mode.');
+      setConnectionMessage('Menggunakan Mode Sandbox Lokal (Kemenkeu).');
     } else if (dbConfigBase64) {
-      // Re-evaluate mysql status
+      // Re-evaluate postgres status
       setConnectionStatus('testing');
       fetch('/api/db/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dbType: 'mysql', dbConfig: dbConfigBase64 })
+        body: JSON.stringify({ dbType: 'postgres', dbConfig: dbConfigBase64 })
       })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
             setConnectionStatus('connected');
-            setConnectionMessage('Connected to MySQL server.');
+            setConnectionMessage('Terhubung ke database PostgreSQL.');
           } else {
             setConnectionStatus('error');
-            setConnectionMessage(data.message || 'Connection failed.');
+            setConnectionMessage(data.message || 'Koneksi gagal.');
           }
         })
         .catch(() => {
           setConnectionStatus('error');
-          setConnectionMessage('Backend communication error.');
+          setConnectionMessage('Kesalahan komunikasi dengan server backend.');
         });
     } else {
       setConnectionStatus('disconnected');
-      setConnectionMessage('Configure MySQL credentials to connect.');
+      setConnectionMessage('Konfigurasi kredensial PostgreSQL untuk menghubungkan.');
     }
   };
 
-  const updateDbConfig = (config: MySqlConfig | null) => {
+  const updateDbConfig = (config: PgConfig | null) => {
     setDbConfigState(config);
     if (config) {
       localStorage.setItem('db_config', JSON.stringify(config));
@@ -127,38 +127,38 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   };
 
-  const testConnection = async (config: MySqlConfig) => {
+  const testConnection = async (config: PgConfig) => {
     setConnectionStatus('testing');
-    setConnectionMessage('Testing connection...');
+    setConnectionMessage('Menguji koneksi database...');
     try {
       const base64 = Buffer.from(JSON.stringify(config)).toString('base64');
       const res = await fetch('/api/db/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dbType: 'mysql', dbConfig: base64 })
+        body: JSON.stringify({ dbType: 'postgres', dbConfig: base64 })
       });
       const data = await res.json();
       if (data.success) {
         setConnectionStatus('connected');
-        setConnectionMessage('Connected to MySQL server successfully.');
+        setConnectionMessage('Koneksi ke database PostgreSQL berhasil.');
         updateDbConfig(config);
-        setDbTypeState('mysql');
-        localStorage.setItem('db_type', 'mysql');
+        setDbTypeState('postgres');
+        localStorage.setItem('db_type', 'postgres');
       } else {
         setConnectionStatus('error');
-        setConnectionMessage(data.message || 'Failed to connect.');
+        setConnectionMessage(data.message || 'Koneksi database gagal.');
       }
       return data;
     } catch (e: any) {
       setConnectionStatus('error');
-      setConnectionMessage(e.message || 'Error occurred while testing.');
-      return { success: false, message: e.message || 'Connection test failed.' };
+      setConnectionMessage(e.message || 'Terjadi kesalahan sistem.');
+      return { success: false, message: e.message || 'Uji koneksi gagal.' };
     }
   };
 
   const initializeSchema = async () => {
-    if (dbType === 'mysql' && !dbConfigBase64) {
-      return { success: false, message: 'MySQL configuration is missing.' };
+    if (dbType === 'postgres' && !dbConfigBase64) {
+      return { success: false, message: 'Konfigurasi PostgreSQL tidak ditemukan.' };
     }
     try {
       const res = await fetch('/api/db/migrate', {
@@ -172,7 +172,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       });
       return await res.json();
     } catch (e: any) {
-      return { success: false, message: e.message || 'Failed to run migration setup.' };
+      return { success: false, message: e.message || 'Gagal menjalankan inisialisasi skema.' };
     }
   };
 
@@ -181,14 +181,14 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     localStorage.setItem('db_type', 'sandbox');
     updateDbConfig(null);
     setConnectionStatus('disconnected');
-    setConnectionMessage('Disconnected. Switched back to Sandbox mode.');
+    setConnectionMessage('Koneksi diputus. Dialihkan ke Mode Sandbox Lokal.');
   };
 
   const getHeaders = () => {
     const headers: Record<string, string> = {
       'x-db-type': dbType,
     };
-    if (dbType === 'mysql' && dbConfigBase64) {
+    if (dbType === 'postgres' && dbConfigBase64) {
       headers['x-db-config'] = dbConfigBase64;
     }
     return headers;
