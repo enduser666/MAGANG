@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
   LayoutDashboard,
   BarChart3,
@@ -58,37 +58,24 @@ export default function MonitoringAnalisis() {
   const [tablesList, setTablesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalFindings: 5612,
-    highRisk: 842,
-    repeated: 156,
-    completionRate: 92.4,
-    integratedUnits: 84
+    totalFindings: 0,
+    highRisk: 0,
+    repeated: 0,
+    completionRate: 0,
+    integratedUnits: 0
   });
   const [datasetsList, setDatasetsList] = useState<any[]>([]);
 
-  // Preloaded chart data based on MoF screenshots
-  const findingsTrendData = [
-    { name: 'Jan', Temuan: 1600 },
-    { name: 'Mar', Temuan: 1800 },
-    { name: 'May', Temuan: 4000 },
-    { name: 'Jul', Temuan: 5000 },
-    { name: 'Sep', Temuan: 6000 },
-    { name: 'Nov', Temuan: 7612 }
-  ];
+  const [findingsTrendData, setFindingsTrendData] = useState<any[]>([]);
+  const [tindakLanjutData, setTindakLanjutData] = useState<any[]>([]);
+  const [unitFindingsData, setUnitFindingsData] = useState<any[]>([]);
 
-  const tindakLanjutData = [
-    { name: 'Selesai', value: 3367, color: '#16A34A' },
-    { name: 'Proses', value: 1683, color: '#1D4ED8' },
-    { name: 'Terlambat', value: 562, color: '#DC2626' }
-  ];
+  const [riskRegister, setRiskRegister] = useState<any[]>([]);
+  const [riskDistData, setRiskDistData] = useState<any[]>([]);
+  const [riskTrendData, setRiskTrendData] = useState<any[]>([]);
 
-  const unitFindingsData = [
-    { name: 'DJ Pajak', Temuan: 1240 },
-    { name: 'DJ Bea Cukai', Temuan: 980 },
-    { name: 'DJ Perbendaharaan', Temuan: 750 },
-    { name: 'DJ Kekayaan Negara', Temuan: 520 },
-    { name: 'BK Fiskal', Temuan: 310 }
-  ];
+  const [kpiUnitsPerformance, setKpiUnitsPerformance] = useState<any[]>([]);
+  const [ikuTrendData, setIkuTrendData] = useState<any[]>([]);
 
   // --- TAB: CHARTS (BI CREATOR) STATE & DATA ---
   const [selectedTable, setSelectedTable] = useState<string>('temuan_pengawasan');
@@ -106,49 +93,6 @@ export default function MonitoringAnalisis() {
   // --- TAB: RISK MANAGEMENT STATE & DATA ---
   const [selectedProb, setSelectedProb] = useState<number | null>(null);
   const [selectedImp, setSelectedImp] = useState<number | null>(null);
-  
-  const riskRegister = [
-    { id: 'R-01', kategori: 'Strategis', deskripsi: 'Keterlambatan penyelesaian regulasi pengawasan eksternal PMK.', owner: 'Itjen', mitigasi: 'Penyusunan tim akselerasi lintas eselon.', prob: 4, imp: 4, status: 'High' },
-    { id: 'R-02', kategori: 'Finansial', deskripsi: 'Ketidakakuratan pencatatan piutang negara eselon I.', owner: 'DJKN', mitigasi: 'Integrasi otomatisasi rekonsiliasi data bulanan.', prob: 3, imp: 5, status: 'High' },
-    { id: 'R-03', kategori: 'Operasional', deskripsi: 'Kegagalan sync pipeline dataset integrasi DJP.', owner: 'DJP', mitigasi: 'Penjadwalan ulang otomatis dan backup redundancy.', prob: 4, imp: 2, status: 'Medium' },
-    { id: 'R-04', kategori: 'Kepatuhan', deskripsi: 'Keterlambatan penyelesaian berkas TLHP audit tahunan.', owner: 'Itjen', mitigasi: 'Pemberian dashboard warning H-15 target.', prob: 2, imp: 4, status: 'Medium' },
-    { id: 'R-05', kategori: 'Teknologi', deskripsi: 'Potensi kebocoran data sensitif Wajib Pajak.', owner: 'DJP', mitigasi: 'Implementasi enkripsi end-to-end and audit ISO 27001.', prob: 2, imp: 5, status: 'High' },
-    { id: 'R-06', kategori: 'Strategis', deskripsi: 'Keterbatasan kuantitas auditor bersertifikat pengawasan.', owner: 'Itjen', mitigasi: 'Penyelenggaraan sertifikasi intensif BPPK.', prob: 3, imp: 3, status: 'Medium' },
-    { id: 'R-07', kategori: 'Operasional', deskripsi: 'Deviasi logistik pabean pelabuhan utama.', owner: 'DJBC', mitigasi: 'Penyediaan sistem tracking kontainer real-time.', prob: 3, imp: 2, status: 'Medium' }
-  ];
-
-  const riskDistData = [
-    { name: 'Strategis', Low: 2, Medium: 3, High: 4 },
-    { name: 'Finansial', Low: 1, Medium: 2, High: 3 },
-    { name: 'Operasional', Low: 4, Medium: 5, High: 2 },
-    { name: 'Kepatuhan', Low: 3, Medium: 4, High: 1 }
-  ];
-
-  const riskTrendData = [
-    { month: 'Jan', RisikoTinggi: 18, TotalRisiko: 45 },
-    { month: 'Feb', RisikoTinggi: 17, TotalRisiko: 48 },
-    { month: 'Mar', RisikoTinggi: 15, TotalRisiko: 44 },
-    { month: 'Apr', RisikoTinggi: 14, TotalRisiko: 42 },
-    { month: 'Mei', RisikoTinggi: 12, TotalRisiko: 39 },
-    { month: 'Jun', RisikoTinggi: 10, TotalRisiko: 35 }
-  ];
-
-  // --- TAB: KPI / IKU PERFORMANCE DATA ---
-  const kpiUnitsPerformance = [
-    { name: 'DJP', Target: 95, Realisasi: 96.5 },
-    { name: 'DJBC', Target: 92, Realisasi: 90.8 },
-    { name: 'DJKN', Target: 90, Realisasi: 88.5 },
-    { name: 'DJPb', Target: 95, Realisasi: 94.2 },
-    { name: 'Itjen', Target: 98, Realisasi: 99.0 },
-    { name: 'Setjen', Target: 94, Realisasi: 95.5 }
-  ];
-
-  const ikuTrendData = [
-    { year: '2022', IKU1: 88, IKU2: 84 },
-    { year: '2023', IKU1: 91, IKU2: 89 },
-    { year: '2024', IKU1: 94, IKU2: 92 },
-    { year: '2025', IKU1: 96, IKU2: 95 }
-  ];
 
   // Load datasets and widgets list
   const fetchDashboardData = async () => {
@@ -179,43 +123,49 @@ export default function MonitoringAnalisis() {
         setWidgets(widgetData.data || []);
       }
 
-      // Fetch dynamic stats from selected table
+      // Fetch dynamic stats from selected table via Analytics API
       if (activeTable) {
-        const recRes = await fetch(`/api/tables/${activeTable}?limit=500`, { headers });
-        const recData = await recRes.json();
-        if (recData.success && recData.data.length > 0) {
-          const rows = recData.data;
-          const total = rows.length;
+        const anlRes = await fetch(`/api/dashboard/analytics?tableName=${activeTable}`, { headers });
+        const anlData = await anlRes.json();
+        
+        if (anlData.success && anlData.data) {
+          const d = anlData.data;
+          const st = d.statusDistribution || { selesai: 0, proses: 0, belum: 0 };
           
-          const highRiskCount = rows.filter((r: any) => 
-            String(r.tingkat_risiko || r.risk_score || '').toLowerCase().includes('tinggi') || 
-            Number(r.risk_score || 0) > 70
-          ).length;
+          const totalRecordsForRate = d.totalFindings || 0;
+          const completionRate = totalRecordsForRate > 0 ? Number(((st.selesai / totalRecordsForRate) * 100).toFixed(1)) : 0;
           
-          const repeatedCount = rows.filter((r: any) => 
-            String(r.temuan_berulang || '').toLowerCase() === 'ya' || 
-            String(r.repeated || '').toLowerCase() === 'yes'
-          ).length;
-
-          const selesaiCount = rows.filter((r: any) => 
-            String(r.status || '').toLowerCase() === 'selesai' ||
-            String(r.status || '').toLowerCase() === 'closed'
-          ).length;
-
-          const rate = total > 0 ? Number(((selesaiCount / total) * 100).toFixed(1)) : 0;
-          
-          const units = new Set();
-          rows.forEach((r: any) => {
-            if (r.unit_kerja || r.unit) units.add(r.unit_kerja || r.unit);
-          });
-
           setStats({
-            totalFindings: total === 24 ? 5612 : total,
-            highRisk: total === 24 ? 842 : highRiskCount,
-            repeated: total === 24 ? 156 : repeatedCount,
-            completionRate: total === 24 ? 92.4 : rate,
-            integratedUnits: total === 24 ? 84 : (units.size || 1)
+            totalFindings: d.totalFindings || 0,
+            highRisk: d.highRiskCount || 0,
+            repeated: d.repeatedCount || 0,
+            completionRate: completionRate,
+            integratedUnits: (d.topUnits && d.topUnits.length > 0) ? d.topUnits.length : 0
           });
+
+          setTindakLanjutData([
+            { name: 'Selesai', value: st.selesai || 0, color: '#16A34A' },
+            { name: 'Proses', value: st.proses || 0, color: '#1D4ED8' },
+            { name: 'Terlambat/Belum', value: st.belum || 0, color: '#DC2626' }
+          ].filter(x => x.value > 0));
+
+          if (d.trendData) {
+            setFindingsTrendData(d.trendData.map((t: any) => ({
+              name: t.name,
+              Temuan: t.Temuan
+            })));
+          } else {
+            setFindingsTrendData([]);
+          }
+          
+          if (d.topUnits && d.topUnits.length > 0) {
+             setUnitFindingsData(d.topUnits.map((u: any) => ({
+               name: u.unitName || 'Unit',
+               Temuan: u.Temuan || 0
+             })));
+          } else {
+             setUnitFindingsData([]);
+          }
         }
       }
     } catch (e) {

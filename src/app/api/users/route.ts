@@ -1,137 +1,63 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { ApiResponse } from '@/lib/api-response';
+import { UserService } from '@/services/UserService';
+import { withAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const service = new UserService(dbType, dbConfig);
 
-    const users = await db.users.findMany();
-    return NextResponse.json({ success: true, data: users });
+    const users = await service.listUsers();
+    return ApiResponse.success(users, 'Users listed successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to list users.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to list users.', error, 500);
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const service = new UserService(dbType, dbConfig);
 
     const body = await request.json();
-    const { username, password, role, fullName, nip, email, phoneNumber, unitKerja } = body;
+    const newUser = await service.createUser(body);
 
-    if (!username || !password) {
-      return NextResponse.json({ success: false, message: 'Username and password are required.' }, { status: 400 });
-    }
-
-    const existingUser = await db.users.findByUsername(username.trim());
-    if (existingUser) {
-      return NextResponse.json({ success: false, message: 'Username already exists.' }, { status: 400 });
-    }
-
-    const passwordHash = hashPassword(password);
-    const newUser = await db.users.create({
-      username: username.trim(),
-      passwordHash,
-      role: role || 'Viewer',
-      fullName: fullName || '',
-      nip: nip || '',
-      email: email || '',
-      phoneNumber: phoneNumber || '',
-      unitKerja: unitKerja || ''
-    });
-
-    // Write audit log
-    await db.auditLogs.create({
-      action: 'CREATE_USER',
-      details: `Administrator created user account: "${newUser.username}" (${newUser.role})`,
-      user: 'Administrator'
-    });
-
-    return NextResponse.json({ success: true, data: newUser });
+    return ApiResponse.success(newUser, 'User created successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create user.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to create user.', error, 400);
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const service = new UserService(dbType, dbConfig);
 
     const body = await request.json();
-    const { userId, role, fullName, nip, email, phoneNumber, unitKerja } = body;
+    const updatedUser = await service.updateUser(body);
 
-    if (!userId) {
-      return NextResponse.json({ success: false, message: 'User ID is required.' }, { status: 400 });
-    }
-
-    const updatedUser = await db.users.updateProfile(Number(userId), {
-      role,
-      fullName,
-      nip,
-      email,
-      phoneNumber,
-      unitKerja
-    });
-
-    // Write audit log
-    await db.auditLogs.create({
-      action: 'UPDATE_USER_ROLE',
-      details: `Administrator updated user role/profile for "${updatedUser.username}" to ${updatedUser.role}`,
-      user: 'Administrator'
-    });
-
-    return NextResponse.json({ success: true, data: updatedUser });
+    return ApiResponse.success(updatedUser, 'User updated successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to update user.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to update user.', error, 400);
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const service = new UserService(dbType, dbConfig);
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
-    if (!userId) {
-      return NextResponse.json({ success: false, message: 'User ID is required.' }, { status: 400 });
-    }
+    await service.deleteUser(Number(userId));
 
-    const success = await db.users.deleteUser(Number(userId));
-    if (!success) {
-      return NextResponse.json({ success: false, message: 'User not found.' }, { status: 404 });
-    }
-
-    // Write audit log
-    await db.auditLogs.create({
-      action: 'DELETE_USER',
-      details: `Administrator deleted user account with ID: ${userId}`,
-      user: 'Administrator'
-    });
-
-    return NextResponse.json({ success: true, message: 'User deleted successfully.' });
+    return ApiResponse.success(null, 'User deleted successfully.');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to delete user.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to delete user.', error, 400);
   }
-}
+});

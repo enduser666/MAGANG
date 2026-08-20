@@ -1,42 +1,42 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { ApiResponse } from '@/lib/api-response';
+import { ImportHistoryService } from '@/services/ImportHistoryService';
+import { AuditService } from '@/services/AuditService';
+import { withAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const historyService = new ImportHistoryService(dbType, dbConfig);
+    const auditService = new AuditService(dbType, dbConfig);
 
-    const history = await db.importHistory.findMany();
-    const logs = await db.auditLogs.findMany();
+    const history = await historyService.listImportHistory();
+    const logs = await auditService.listAuditLogs();
 
-    return NextResponse.json({
-      success: true,
-      history,
-      logs,
-    });
+    return ApiResponse.success({ history, logs }, 'Logs and history fetched successfully');
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
+    return ApiResponse.error(error.message || 'Internal Server Error', error, 500);
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
-    const db = getDbClient(dbType, dbConfig);
+    const historyService = new ImportHistoryService(dbType, dbConfig);
+    const auditService = new AuditService(dbType, dbConfig);
 
-    await db.importHistory.clearAll();
-    await db.auditLogs.clearAll();
+    await historyService.clearHistory();
+    await auditService.clearAuditLogs();
 
-    await db.auditLogs.create({
+    await auditService.writeLog({
       action: 'CLEAR_LOGS',
       details: 'Cleared all import history and system audit logs.',
-      user: 'System Administrator',
+      user: user.username,
     });
 
-    return NextResponse.json({ success: true, message: 'Logs cleared successfully' });
+    return ApiResponse.success(null, 'Logs cleared successfully');
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
+    return ApiResponse.error(error.message || 'Internal Server Error', error, 500);
   }
-}
+});

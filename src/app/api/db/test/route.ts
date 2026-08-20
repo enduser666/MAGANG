@@ -1,14 +1,14 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { getDbClient } from '@/db';
+import { withAuth } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request, user) => {
   try {
     const body = await request.json();
     const { dbType, dbConfig } = body;
     const db = getDbClient(dbType, dbConfig);
     const result = await db.testConnection();
-    return NextResponse.json(result);
+    return Response.json(result);
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
+    return Response.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
   }
-}
+});

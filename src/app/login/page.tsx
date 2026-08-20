@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import { Lock, Mail, ShieldAlert, KeyRound, Loader2, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const router = useRouter();
-  const { getHeaders, dbType, connectionStatus } = useDb();
+  const { getHeaders, dbType, connectionStatus, setDbType } = useDb();
   
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin');
@@ -32,7 +32,12 @@ export default function Login() {
     setErrorMsg('');
 
     try {
-      const headers = getHeaders();
+      // Force switch to main database (MySQL/Postgres) on login
+      if (dbType === 'sandbox') {
+        setDbType('postgres');
+      }
+      
+      const headers = { ...getHeaders(), 'x-db-type': 'postgres' };
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },

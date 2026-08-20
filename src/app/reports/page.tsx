@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
   FileText,
   Download,

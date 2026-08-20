@@ -1,357 +1,381 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
-  MessageSquareCode,
-  Send,
-  Sparkles,
-  Terminal,
-  CheckSquare,
-  BarChart3,
-  Lightbulb,
-  ArrowRight,
-  User,
   Brain,
+  Send,
+  Plus,
+  Search,
+  Paperclip,
+  TrendingUp,
+  AlertOctagon,
+  ShieldCheck,
+  CheckCircle,
+  FileText,
+  Clock,
+  Sparkles,
   HelpCircle,
-  RefreshCw
+  RefreshCw,
+  User,
+  Lightbulb,
+  Building,
+  Target
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend
-} from 'recharts';
 
 interface ChatMessage {
+  id: string;
   sender: 'user' | 'assistant';
   text: string;
-  sql?: string;
-  recommendations?: string[];
-  chartType?: 'bar' | 'line' | 'area';
-  chartData?: any[];
 }
 
-export default function AIAnalyticsAssistant() {
-  const { dbType } = useDb();
+export default function AIAssistantWorkspace() {
+  const { getHeaders } = useDb();
 
   const [inputMsg, setInputMsg] = useState('');
   const [chatFeed, setChatFeed] = useState<ChatMessage[]>([
     {
+      id: 'welcome',
       sender: 'assistant',
-      text: 'Halo! Saya Asisten Analitik SIDATA Inspektorat Jenderal. Silakan ajukan pertanyaan seputar data temuan pengawasan, tren penyelesaian tindak lanjut (TLHP), atau analisis tingkat risiko unit kerja Kementerian Keuangan.'
+      text: 'Halo! Saya Asisten AI SIDATA, pendamping cerdas Anda untuk pengawasan internal. Silakan tanyakan hal-hal terkait data pemantauan temuan BPK, penyelesaian TLHP, manajemen risiko, atau regulasi pengawasan di lingkungan Kementerian Keuangan.'
     }
   ]);
   const [loading, setLoading] = useState(false);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const messageCounter = useRef(0);
+
+  // Conversation history states
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyItems, setHistoryItems] = useState([
+    { id: 'h1', title: 'Analisis Temuan Q3', prompt: 'Tampilkan analisis temuan audit pada Triwulan III.' },
+    { id: 'h2', title: 'Executive Summary', prompt: 'Buat executive summary laporan pengawasan internal.' },
+    { id: 'h3', title: 'Temuan Berulang', prompt: 'Unit kerja mana yang memiliki temuan berulang?' },
+    { id: 'h4', title: 'Monitoring TLHP', prompt: 'Ringkas monitoring TLHP bulan ini.' },
+    { id: 'h5', title: 'Risiko Unit Kerja', prompt: 'Unit mana yang memiliki risiko tertinggi?' }
+  ]);
+
+  // Insight KPIs
+  const [kpis, setKpis] = useState({
+    totalRec: '5.612',
+    outstandingRec: '2.245',
+    activeTlhp: '1.683',
+    completionRate: '92.4%',
+    highRiskUnits: '5 Unit',
+    overdueCases: '562 Kasus'
+  });
+
+  const suggestedPrompts = [
+    'Unit mana yang memiliki temuan berulang?',
+    'Apa rekomendasi yang belum selesai?',
+    'Ringkas monitoring bulan ini.',
+    'Tampilkan tren penyelesaian TLHP.',
+    'Unit mana yang memiliki risiko tertinggi?',
+    'Buat executive summary.',
+    'Apa penyebab utama keterlambatan TLHP?'
+  ];
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatFeed]);
 
-  const promptOptions = [
-    {
-      label: 'Temuan Terbanyak',
-      query: 'Unit kerja mana yang memiliki temuan terbanyak?'
-    },
-    {
-      label: 'Tren TLHP 12 Bulan',
-      query: 'Tampilkan tren penyelesaian TLHP selama 12 bulan terakhir.'
-    },
-    {
-      label: 'Unit Risiko Tertinggi',
-      query: 'Analisis unit kerja dengan risiko tertinggi.'
-    }
-  ];
+  // Handle submit query
+  const handleSendQuery = async (queryText: string) => {
+    if (!queryText.trim()) return;
 
-  const handleSendQuery = (textQuery: string) => {
-    if (!textQuery.trim()) return;
+    // 1. Add user message
+    messageCounter.current += 1;
+    const userMsgId = 'user-' + messageCounter.current;
+    const userMsg: ChatMessage = {
+      id: userMsgId,
+      sender: 'user',
+      text: queryText
+    };
 
-    // 1. Append user query to chat feed
-    const userMsg: ChatMessage = { sender: 'user', text: textQuery };
     setChatFeed(prev => [...prev, userMsg]);
     setInputMsg('');
     setLoading(true);
 
-    // 2. Simulate AI engine responses depending on keywords matching Kemenkeu queries
-    setTimeout(() => {
-      let responseText = '';
-      let generatedSql = '';
-      let recommendations: string[] = [];
-      let chartType: 'bar' | 'line' | 'area' | undefined;
-      let chartData: any[] = [];
+    try {
+      const headers = getHeaders();
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        },
+        body: JSON.stringify({ message: queryText })
+      });
 
-      const queryLower = textQuery.toLowerCase();
-
-      if (queryLower.includes('banyak') || queryLower.includes('unit kerja') || queryLower.includes('djp')) {
-        responseText = 'Berdasarkan analisis data temuan pengawasan, Direktorat Jenderal Pajak (DJP) mencatat jumlah temuan terbanyak dengan total 1.240 temuan, disusul oleh Direktorat Jenderal Bea dan Cukai (DJBC) sebanyak 980 temuan. Namun demikian, DJP juga memiliki tingkat penyelesaian tindak lanjut (TLHP) tertinggi dibandingkan unit lainnya.';
-        generatedSql = 'SELECT unit_kerja, COUNT(id) as jumlah_temuan\nFROM temuan_pengawasan\nGROUP BY unit_kerja\nORDER BY jumlah_temuan DESC;';
-        recommendations = [
-          'Tingkatkan koordinasi kepatuhan internal pada lingkungan Direktorat Jenderal Pajak.',
-          'Evaluasi penyebab tingginya anomali pada pelaporan perpajakan daerah.',
-          'Lakukan standarisasi audit sistem informasi perpajakan untuk mereduksi kesalahan berulang.'
-        ];
-        chartType = 'bar';
-        chartData = [
-          { name: 'DJ Pajak', Temuan: 1240 },
-          { name: 'DJ Bea Cukai', Temuan: 980 },
-          { name: 'DJ Perbendaharaan', Temuan: 750 },
-          { name: 'DJ Kekayaan Negara', Temuan: 520 },
-          { name: 'BK Fiskal', Temuan: 310 }
-        ];
-      } else if (queryLower.includes('tren') || queryLower.includes('tlhp') || queryLower.includes('bulan')) {
-        responseText = 'Tren penyelesaian Tindak Lanjut Hasil Pengawasan (TLHP) menunjukkan peningkatan konsisten sepanjang 12 bulan terakhir. Persentase rata-rata penyelesaian kumulatif saat ini berada di angka 92,4%, memenuhi standar efektivitas pengawasan Inspektorat Jenderal.';
-        generatedSql = 'SELECT DATE_TRUNC(\'month\', tanggal) as bulan, \n       (COUNT(CASE WHEN status = \'Selesai\' THEN 1 END) * 100.0 / COUNT(*)) as rate_penyelesaian\nFROM temuan_pengawasan\nGROUP BY bulan\nORDER BY bulan ASC;';
-        recommendations = [
-          'Optimalkan pemantauan real-time melalui Dashboard Pimpinan untuk menekan keterlambatan.',
-          'Berikan surat teguran otomatis bagi unit kerja dengan penyelesaian di bawah SLA (95%).'
-        ];
-        chartType = 'line';
-        chartData = [
-          { name: 'Jan', 'Rate TLHP': 85.2 },
-          { name: 'Feb', 'Rate TLHP': 86.8 },
-          { name: 'Mar', 'Rate TLHP': 87.5 },
-          { name: 'Apr', 'Rate TLHP': 89.1 },
-          { name: 'May', 'Rate TLHP': 90.2 },
-          { name: 'Jun', 'Rate TLHP': 92.4 }
-        ];
-      } else if (queryLower.includes('risiko') || queryLower.includes('tinggi')) {
-        responseText = 'Analisis sebaran tingkat risiko menunjukkan bahwa temuan berkategori Risiko Tinggi (Critical) didominasi oleh Direktorat Jenderal Bea dan Cukai (DJBC) dan Direktorat Jenderal Pajak (DJP), dengan konsentrasi dampak finansial mencapai Rp 4,5 Milyar di wilayah regional Jawa.';
-        generatedSql = 'SELECT tingkat_risiko, SUM(dampak_finansial) as total_dampak\nFROM temuan_pengawasan\nWHERE tingkat_risiko = \'Risiko Tinggi\'\nGROUP BY tingkat_risiko;';
-        recommendations = [
-          'Fokuskan alokasi Auditor Utama untuk melakukan penugasan khusus (Investigative Audit) pada area kepabeanan.',
-          'Tinjau mitigasi risiko sistem TI transaksi bea cukai di pelabuhan laut utama.'
-        ];
-        chartType = 'area';
-        chartData = [
-          { name: 'Jawa', Dampak: 4500000000 },
-          { name: 'Sumatera', Dampak: 2200000000 },
-          { name: 'Kalimantan', Dampak: 1300000000 },
-          { name: 'Sulawesi', Dampak: 900000000 },
-          { name: 'Papua', Dampak: 200000000 }
-        ];
-      } else {
-        responseText = `Saya menerima pertanyaan Anda mengenai "${textQuery}". Namun, data spesifik belum terindeks penuh di tabel dinamis Anda. Berikut skrip dasar SQL yang relevan untuk menelusuri data tersebut.`;
-        generatedSql = `SELECT * FROM "${dbType === 'postgres' ? 'public_sidata' : 'tables'}"\nWHERE CAST(details AS TEXT) ILIKE '%${textQuery.trim()}%'\nLIMIT 10;`;
-        recommendations = [
-          'Gunakan filter pencarian di database explorer untuk penelusuran lebih presisi.',
-          'Pastikan dataset yang diunggah memiliki kolom metadata yang lengkap.'
-        ];
-      }
-
-      const assistantMsg: ChatMessage = {
+      const data = await res.json();
+      messageCounter.current += 1;
+      const botMsg: ChatMessage = {
+        id: 'bot-' + messageCounter.current,
         sender: 'assistant',
-        text: responseText,
-        sql: generatedSql,
-        recommendations,
-        chartType,
-        chartData
+        text: data.success ? (data.data || data.response) : `Terjadi kesalahan: ${data.message}`
       };
 
-      setChatFeed(prev => [...prev, assistantMsg]);
+      setChatFeed(prev => [...prev, botMsg]);
+    } catch (e: any) {
+      messageCounter.current += 1;
+      const errorMsg: ChatMessage = {
+        id: 'err-' + messageCounter.current,
+        sender: 'assistant',
+        text: `Gagal mengirim permintaan ke asisten: ${e.message || 'Unknown network error.'}`
+      };
+      setChatFeed(prev => [...prev, errorMsg]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
+  const handleNewConversation = () => {
+    setChatFeed([
+      {
+        id: 'welcome',
+        sender: 'assistant',
+        text: 'Halo! Saya Asisten AI SIDATA, pendamping cerdas Anda untuk pengawasan internal. Silakan tanyakan hal-hal terkait data pemantauan temuan BPK, penyelesaian TLHP, manajemen risiko, atau regulasi pengawasan di lingkungan Kementerian Keuangan.'
+      }
+    ]);
+  };
+
+  // Filter conversation history
+  const filteredHistory = historyItems.filter(item =>
+    item.title.toLowerCase().includes(historySearch.toLowerCase())
+  );
+
   return (
-    <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-200">
+    <div className="flex flex-col h-[calc(100vh-80px)] space-y-4 animate-fade-in text-slate-800 dark:text-slate-200">
       
-      {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Asisten Analitik AI</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">
-          Ajukan pertanyaan analitis menggunakan bahasa alami untuk menghasilkan kueri SQL otomatis, wawasan audit, dan visualisasi bagan.
-        </p>
+      {/* Page Title Dashboard Row */}
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-3 shrink-0">
+        <div>
+          <span className="text-[9px] uppercase font-extrabold tracking-widest text-[#1D4ED8] bg-blue-500/10 px-2 py-0.5 rounded">
+            Enterprise Intelligence Workspace
+          </span>
+          <h1 className="text-xl font-black text-slate-900 dark:text-white mt-1">Asisten AI SIDATA</h1>
+        </div>
       </div>
 
-      {/* Main Grid chat layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Main 3-Column Workspace Grid */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
         
-        {/* Left 3 columns: Chat Assistant window */}
-        <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-sm flex flex-col h-[550px] overflow-hidden">
+        {/* LEFT COLUMN: Conversation History */}
+        <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col min-h-0 shadow-xs">
+          
+          {/* New Chat Button */}
+          <button
+            onClick={handleNewConversation}
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1D4ED8] hover:bg-blue-700 text-white py-2 text-xs font-bold transition-all shadow-xs cursor-pointer mb-4 shrink-0"
+          >
+            <Plus className="h-4 w-4" /> Percakapan Baru
+          </button>
+
+          {/* Search bar */}
+          <div className="relative font-semibold text-xs mb-3.5 shrink-0">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari riwayat..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
+            />
+          </div>
+
+          {/* History List */}
+          <div className="flex-1 overflow-y-auto space-y-1 pr-1 font-bold text-xs">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2 px-2">Riwayat Percakapan</span>
+            {filteredHistory.length === 0 ? (
+              <div className="text-[11px] text-slate-405 italic p-3 text-center">Tidak ada riwayat.</div>
+            ) : (
+              filteredHistory.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSendQuery(item.prompt)}
+                  className="w-full text-left p-2.5 rounded-lg border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-650 dark:text-slate-350 truncate hover:text-[#1D4ED8] dark:hover:text-white transition-all cursor-pointer block"
+                  title={item.title}
+                >
+                  {item.title}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* CENTER COLUMN: Interactive Chat Area */}
+        <div className="lg:col-span-3 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col min-h-0 overflow-hidden">
+          
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
             <div className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-[#1D4ED8]" />
-              <span className="text-xs font-black text-slate-800 dark:text-white">SIDATA AI Assistant</span>
+              <div>
+                <span className="text-xs font-black text-slate-850 dark:text-white block">Asisten AI SIDATA</span>
+                <span className="text-[9.5px] text-slate-450 dark:text-slate-400 block mt-0.5">Asisten cerdas untuk analisis data pengawasan dan rekomendasi BPK.</span>
+              </div>
             </div>
             <span className="text-[9px] uppercase font-black tracking-widest text-[#1D4ED8] bg-blue-500/10 px-2 py-0.5 rounded">
-              Online
+              GEMINI ACTIVE
             </span>
           </div>
 
-          {/* Chat Feed Messages viewport */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-[#F8FAFC]/50 dark:bg-[#0B0F19]/25">
-            {chatFeed.map((msg, idx) => {
+          {/* Messages Viewport */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F8FAFC]/30 dark:bg-[#0B0F19]/10">
+            {chatFeed.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
-                <div key={idx} className={`flex gap-3.5 max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
-                  
+                <div key={msg.id} className={`flex gap-3 max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
                   {/* Avatar */}
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                     isUser 
-                      ? 'bg-blue-500/10 text-[#1D4ED8] border border-blue-500/20'
+                      ? 'bg-blue-500/10 text-[#1D4ED8] border border-blue-500/10'
                       : 'bg-[#1D4ED8] text-white shadow-sm'
                   }`}>
                     {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4 fill-white" />}
                   </div>
 
-                  {/* Message Bubble contents */}
-                  <div className={`rounded-xl p-4 text-xs leading-relaxed space-y-4 shadow-xs ${
+                  {/* Message Bubble */}
+                  <div className={`rounded-xl p-3.5 text-xs leading-relaxed space-y-2 border ${
                     isUser
-                      ? 'bg-[#1D4ED8] text-white'
-                      : 'bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+                      ? 'bg-[#1D4ED8] text-white border-blue-600'
+                      : 'bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-xs'
                   }`}>
-                    {/* Plain explanation text */}
                     <p className="whitespace-pre-line">{msg.text}</p>
-
-                    {/* Dynamic SQL script console block */}
-                    {msg.sql && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                          <Terminal className="h-3.5 w-3.5" /> Generated SQL Query
-                        </span>
-                        <div className="bg-zinc-950 dark:bg-black border border-zinc-800 rounded-lg p-3 font-mono text-[9px] text-[#22C55E] overflow-x-auto whitespace-pre">
-                          {msg.sql}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action checklists */}
-                    {msg.recommendations && msg.recommendations.length > 0 && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-850">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-450 flex items-center gap-1.5">
-                          <CheckSquare className="h-3.5 w-3.5" /> Rekomendasi Tindakan Audit
-                        </span>
-                        <ul className="space-y-1.5 list-disc pl-4 text-slate-500 dark:text-slate-400">
-                          {msg.recommendations.map((rec, i) => (
-                            <li key={i}>{rec}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Interactive charts visual */}
-                    {msg.chartType && msg.chartData && (
-                      <div className="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-850 w-full min-w-[280px]">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-450 flex items-center gap-1.5">
-                          <BarChart3 className="h-3.5 w-3.5" /> Auto-Generated Visual
-                        </span>
-
-                        <div className="h-[180px] bg-slate-50/50 dark:bg-slate-900/20 rounded-lg p-2">
-                          {msg.chartType === 'bar' ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={msg.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-850" />
-                                <XAxis dataKey="name" stroke="#94A3B8" fontSize={9} />
-                                <YAxis stroke="#94A3B8" fontSize={9} />
-                                <Tooltip />
-                                <Bar dataKey="Temuan" fill="#1D4ED8" radius={[3, 3, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          ) : msg.chartType === 'line' ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={msg.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" className="dark:stroke-slate-850" />
-                                <XAxis dataKey="name" stroke="#94A3B8" fontSize={9} />
-                                <YAxis stroke="#94A3B8" fontSize={9} />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="Rate TLHP" stroke="#1D4ED8" strokeWidth={2.5} />
-                              </LineChart>
-                            </ResponsiveContainer>
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={msg.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" className="dark:stroke-slate-850" />
-                                <XAxis dataKey="name" stroke="#94A3B8" fontSize={9} />
-                                <YAxis stroke="#94A3B8" fontSize={9} />
-                                <Tooltip />
-                                <Area type="monotone" dataKey="Dampak" fill="#1D4ED8" fillOpacity={0.1} stroke="#1D4ED8" strokeWidth={2} />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
             })}
 
-            {/* Ingestion loading dot */}
             {loading && (
-              <div className="flex gap-3.5 mr-auto">
-                <div className="h-8 w-8 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 animate-pulse">
+              <div className="flex gap-3 mr-auto">
+                <div className="h-8 w-8 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center font-bold text-xs shrink-0 animate-pulse">
                   <Sparkles className="h-4 w-4 fill-white" />
                 </div>
-                <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs flex items-center gap-2">
+                <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
-                  <span className="text-xs text-slate-450 italic">Menganalisis kueri data...</span>
+                  <span className="text-xs text-slate-450 italic">Asisten sedang menganalisis data...</span>
                 </div>
               </div>
             )}
-
             <div ref={feedEndRef} />
           </div>
 
-          {/* Form input messaging bar */}
-          <form 
+          {/* Suggested Prompts shortcuts */}
+          {chatFeed.length === 1 && !loading && (
+            <div className="p-4 border-t border-slate-100 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-900/10 shrink-0 space-y-2">
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block px-1">Pertanyaan yang Disarankan:</span>
+              <div className="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto pr-1">
+                {suggestedPrompts.map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendQuery(p)}
+                    className="text-[10.5px] font-bold text-slate-650 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-[#1D4ED8] px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chat input bar */}
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendQuery(inputMsg);
             }}
-            className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#111827] flex gap-3.5"
+            className="p-4 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] flex gap-2.5 shrink-0"
           >
+            <button
+              type="button"
+              className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 transition-all cursor-pointer flex items-center justify-center shrink-0"
+              title="Attach File"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
             <input
               type="text"
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
-              placeholder="Tanyakan sesuatu, contoh: 'Unit kerja mana yang memiliki temuan terbanyak?'"
+              placeholder="Tanyakan analisis data SIDATA..."
               className="flex-1 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
             />
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg transition-all shadow-md shadow-blue-500/10 flex items-center justify-center cursor-pointer disabled:opacity-50"
+              className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg transition-all shadow-md shadow-blue-500/10 flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0"
             >
               <Send className="h-4.5 w-4.5" />
             </button>
           </form>
         </div>
 
-        {/* Column 4: Suggestions list (Right sidebar) */}
-        <div className="lg:col-span-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs space-y-4">
-          <h3 className="text-xs font-extrabold text-slate-450 uppercase tracking-wider flex items-center gap-2">
-            <Lightbulb className="h-4.5 w-4.5 text-[#1D4ED8]" /> Topik Rekomendasi
-          </h3>
-          
-          <div className="space-y-2">
-            {promptOptions.map((opt, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSendQuery(opt.query)}
-                className="w-full flex items-center justify-between p-3 text-left border border-slate-100 dark:border-slate-850 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-bold text-slate-650 dark:text-slate-300 transition-all cursor-pointer"
-              >
-                <span>{opt.label}</span>
-                <ArrowRight className="h-3.5 w-3.5 text-[#1D4ED8] flex-shrink-0" />
-              </button>
-            ))}
+        {/* RIGHT COLUMN: Insight Panel & KPI Cards */}
+        <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col gap-3 min-h-0 overflow-y-auto shadow-xs">
+          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block border-b border-slate-100 dark:border-slate-850 pb-2">
+            Insight Panel (KPI Pengawasan)
+          </span>
+
+          {/* KPI 1 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Total Rekomendasi BPK</span>
+              <Target className="h-4 w-4 text-blue-500" />
+            </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.totalRec}</p>
+            <span className="text-[8px] text-slate-405 font-bold">Terintegrasi di sistem</span>
           </div>
 
-          <div className="border-t border-slate-100 dark:border-slate-850 pt-4 text-[10px] text-slate-400 leading-relaxed font-semibold">
-            <div className="flex gap-2">
-              <HelpCircle className="h-4.5 w-4.5 text-slate-450 flex-shrink-0" />
-              <p>Asisten Bantuan SIDATA secara otomatis memetakan variabel kueri berdasarkan nama kolom di tabel aktif Anda.</p>
+          {/* KPI 2 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Belum Selesai (Outstanding)</span>
+              <AlertOctagon className="h-4 w-4 text-amber-500" />
             </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.outstandingRec}</p>
+            <span className="text-[8px] text-amber-600 font-bold">Perlu eskalasi tindak lanjut</span>
           </div>
+
+          {/* KPI 3 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Tindak Lanjut Aktif (TLHP)</span>
+              <Clock className="h-4 w-4 text-indigo-500" />
+            </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.activeTlhp}</p>
+            <span className="text-[8px] text-indigo-600 font-bold">Sedang proses penyelesaian</span>
+          </div>
+
+          {/* KPI 4 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Persentase Penyelesaian</span>
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.completionRate}</p>
+            <span className="text-[8px] text-emerald-600 font-bold">Memenuhi SLA pengawasan</span>
+          </div>
+
+          {/* KPI 5 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Unit Kerja Kerawanan Tinggi</span>
+              <Building className="h-4 w-4 text-[#1D4ED8]" />
+            </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.highRiskUnits}</p>
+            <span className="text-[8px] text-slate-405 font-bold">Fokus mitigasi utama</span>
+          </div>
+
+          {/* KPI 6 */}
+          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
+            <div className="flex items-center justify-between text-slate-450">
+              <span className="text-[8.5px] font-extrabold uppercase">Kasus Terlambat (Overdue)</span>
+              <AlertOctagon className="h-4 w-4 text-red-500 animate-pulse" />
+            </div>
+            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.overdueCases}</p>
+            <span className="text-[8px] text-red-650 font-bold">Melewati tenggat SLA</span>
+          </div>
+
         </div>
 
       </div>

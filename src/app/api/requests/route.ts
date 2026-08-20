@@ -1,23 +1,21 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { getDbClient } from '@/db';
+import { ApiResponse } from '@/lib/api-response';
+import { withAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
     const db = getDbClient(dbType, dbConfig);
 
     const reqs = await db.accessRequests.findMany();
-    return NextResponse.json({ success: true, data: reqs });
+    return ApiResponse.success(reqs, 'Access requests listed successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to list access requests.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to list access requests.', error, 500);
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
@@ -29,16 +27,13 @@ export async function POST(request: Request) {
       requestedRole: body.requestedRole
     });
 
-    return NextResponse.json({ success: true, data: req });
+    return ApiResponse.success(req, 'Access request created successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create access request.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to create access request.', error, 500);
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
@@ -53,14 +48,11 @@ export async function PUT(request: Request) {
     await db.auditLogs.create({
       action: 'Access Request Approved/Rejected',
       details: `Permintaan akses peran '${req.requestedRole}' oleh '${req.username}' diubah status menjadi ${status}.`,
-      user: 'Administrator'
+      user: user.username
     });
 
-    return NextResponse.json({ success: true, data: req });
+    return ApiResponse.success(req, 'Access request status updated successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to update access request status.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to update access request status.', error, 500);
   }
-}
+});

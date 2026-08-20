@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
-import { getDbClient } from '@/lib/db';
+import { verifyToken, ROLE_PERMISSIONS } from '@/lib/auth';
+import { getDbClient } from '@/db';
+import { ApiResponse } from '@/lib/api-response';
 
 export async function GET(request: Request) {
   try {
@@ -9,12 +10,12 @@ export async function GET(request: Request) {
     const token = cookieStore.get('session_token')?.value;
 
     if (!token) {
-      return NextResponse.json({ success: false, message: 'Not logged in' }, { status: 401 });
+      return ApiResponse.error('Not logged in', null, 401);
     }
 
     const payload = verifyToken(token);
     if (!payload) {
-      return NextResponse.json({ success: false, message: 'Invalid or expired session' }, { status: 401 });
+      return ApiResponse.error('Invalid or expired session', null, 401);
     }
 
     const dbType = request.headers.get('x-db-type') || 'sandbox';
@@ -23,26 +24,26 @@ export async function GET(request: Request) {
 
     const user = await db.users.findByUsername(payload.username);
     if (!user) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return ApiResponse.error('User not found', null, 404);
     }
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName || '',
-        avatarUrl: user.avatarUrl || '',
-        email: user.email || '',
-        nip: user.nip || '',
-        phoneNumber: user.phoneNumber || '',
-        unitKerja: user.unitKerja || ''
-      }
-    });
+    return ApiResponse.success({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      fullName: user.fullName || '',
+      avatarUrl: user.avatarUrl || '',
+      email: user.email || '',
+      nip: user.nip || '',
+      phoneNumber: user.phoneNumber || '',
+      unitId: user.unitId || undefined,
+      unitKode: user.unitKode || undefined,
+      accessScope: user.accessScope || 'OWN_UNIT',
+      permissions: ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS['VIEWER']
+    }, 'User profile fetched successfully');
 
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
+    return ApiResponse.error(error.message || 'Internal Server Error', error, 500);
   }
 }
 
@@ -52,12 +53,12 @@ export async function PUT(request: Request) {
     const token = cookieStore.get('session_token')?.value;
 
     if (!token) {
-      return NextResponse.json({ success: false, message: 'Not logged in' }, { status: 401 });
+      return ApiResponse.error('Not logged in', null, 401);
     }
 
     const payload = verifyToken(token);
     if (!payload) {
-      return NextResponse.json({ success: false, message: 'Invalid or expired session' }, { status: 401 });
+      return ApiResponse.error('Invalid or expired session', null, 401);
     }
 
     const body = await request.json();
@@ -83,22 +84,19 @@ export async function PUT(request: Request) {
       user: updatedUser.username
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        role: updatedUser.role,
-        fullName: updatedUser.fullName || '',
-        avatarUrl: updatedUser.avatarUrl || '',
-        email: updatedUser.email || '',
-        nip: updatedUser.nip || '',
-        phoneNumber: updatedUser.phoneNumber || '',
-        unitKerja: updatedUser.unitKerja || ''
-      }
-    });
+    return ApiResponse.success({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      role: updatedUser.role,
+      fullName: updatedUser.fullName || '',
+      avatarUrl: updatedUser.avatarUrl || '',
+      email: updatedUser.email || '',
+      nip: updatedUser.nip || '',
+      phoneNumber: updatedUser.phoneNumber || '',
+      unitKerja: updatedUser.unitKerja || ''
+    }, 'User profile updated successfully');
 
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'Internal Server Error' }, { status: 500 });
+    return ApiResponse.error(error.message || 'Internal Server Error', error, 500);
   }
 }

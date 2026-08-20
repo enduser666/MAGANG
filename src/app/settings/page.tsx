@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
   Settings as SettingsIcon,
   Shield,

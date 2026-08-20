@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import * as XLSX from 'xlsx';
 import {
   UploadCloud,
@@ -72,7 +72,7 @@ export default function DataImport() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
       const res = await fetch('/api/history', { headers: getHeaders() });
@@ -85,9 +85,9 @@ export default function DataImport() {
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, [getHeaders]);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
       const res = await fetch('/api/pipeline', { headers: getHeaders() });
@@ -100,12 +100,12 @@ export default function DataImport() {
     } finally {
       setJobsLoading(false);
     }
-  };
+  }, [getHeaders]);
 
   useEffect(() => {
     fetchHistory();
     fetchJobs();
-  }, [dbType, connectionStatus]);
+  }, [dbType, connectionStatus, fetchHistory, fetchJobs]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -135,7 +135,39 @@ export default function DataImport() {
 
   const handleFileLoad = async (file: File) => {
     setLoading(true);
-    setFileMeta({ name: file.name, size: file.size });
+    console.log('[IMPORT-DIAG] handleFileLoad() called', { fileName: file.name, fileSize: file.size });
+
+    // 1. Maximum file size validation (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Ukuran file melebihi batas 50MB yang diperbolehkan.');
+      setLoading(false);
+      return;
+    }
+
+    // 2. Extension validation
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (ext !== '.xlsx' && ext !== '.xls' && ext !== '.csv') {
+      alert('Format file tidak didukung. Hanya file .xlsx, .xls, atau .csv yang diperbolehkan.');
+      setLoading(false);
+      return;
+    }
+
+    // 3. MIME-type validation
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
+      'text/comma-separated-values'
+    ];
+    if (file.type && !allowedMimes.includes(file.type)) {
+      alert('MIME type file tidak valid. Silakan unggah file spreadsheet yang valid.');
+      setLoading(false);
+      return;
+    }
+
+    // 4. Filename sanitization (path traversal protection)
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    setFileMeta({ name: sanitizedName, size: file.size });
     
     try {
       const reader = new FileReader();
@@ -164,8 +196,28 @@ export default function DataImport() {
     setTargetTableName(sheetName.toLowerCase().replace(/[^a-z0-9_]/g, '_'));
 
     const sheet = activeWb.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    setSheetRows(rows);
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, cellDates: true } as any);
+    console.log('[IMPORT-DIAG] handleSheetSelect() parsed sheet', { sheetName, rowCount: rows.length });
+    
+    // Prototype Pollution Guard & Date Formatter
+    const sanitizedRows = rows.map((row) => {
+      const cleanRow: any = {};
+      for (const key in row) {
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+          continue;
+        }
+        let val = row[key];
+        if (typeof val === 'string') {
+          val = val.trim();
+        } else if (val instanceof Date) {
+          // Convert Date objects from SheetJS to YYYY-MM-DD ISO string to prevent timezone offset bugs in DB
+          val = val.toISOString().split('T')[0];
+        }
+        cleanRow[key] = val;
+      }
+      return cleanRow;
+    });
+    setSheetRows(sanitizedRows);
 
     if (rows.length > 0) {
       const firstRow = rows[0];
@@ -282,6 +334,7 @@ export default function DataImport() {
 
     const tableName = targetTableName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_') || selectedSheet.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const headers = getHeaders();
+    console.log('[IMPORT-DIAG] executeDbImport() called', { selectedSheet, tableName, rowCount: sheetRows.length, dbType: headers['x-db-type'] || 'sandbox' });
     
     const records = sheetRows.map((row) => {
       const mappedRecord: any = {};
@@ -293,7 +346,12 @@ export default function DataImport() {
           const str = String(val).toLowerCase();
           val = str === 'true' || str === '1' || str === 'ya';
         } else if (col.type === 'date') {
-          val = val !== '' ? new Date(val).toISOString() : null;
+          if (val !== '' && val != null) {
+            const d = new Date(val);
+            val = isNaN(d.getTime()) ? null : d.toISOString();
+          } else {
+            val = null;
+          }
         } else {
           val = String(val);
         }
@@ -302,29 +360,33 @@ export default function DataImport() {
       return mappedRecord;
     });
 
+    const payloadBody = JSON.stringify({
+      dbType: headers['x-db-type'] || 'sandbox',
+      dbConfig: headers['x-db-config'] || null,
+      action: 'migrate',
+      tableName,
+      displayName: targetTableName.trim() || selectedSheet,
+      sourceFile: fileMeta.name,
+      creator: 'Data Analyst',
+      columns: inferredColumns.map(c => ({ name: c.mappedName, type: c.type })),
+      records,
+      fileSize: fileMeta.size,
+      duplicatesCount,
+      missingValuesCount: missingCount,
+      qualityScore,
+      importMode
+    });
+    console.log('[IMPORT-DIAG] POST /api/db/migrate payload size (bytes):', payloadBody.length, '| records:', records.length, '| tableName:', tableName);
+
     try {
       const res = await fetch('/api/db/migrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({
-          dbType: headers['x-db-type'] || 'sandbox',
-          dbConfig: headers['x-db-config'] || null,
-          action: 'migrate',
-          tableName,
-          displayName: targetTableName.trim() || selectedSheet,
-          sourceFile: fileMeta.name,
-          creator: 'Data Analyst',
-          columns: inferredColumns.map(c => ({ name: c.mappedName, type: c.type })),
-          records,
-          fileSize: fileMeta.size,
-          duplicatesCount,
-          missingValuesCount: missingCount,
-          qualityScore,
-          importMode
-        })
+        body: payloadBody
       });
 
       const data = await res.json();
+      console.log('[IMPORT-DIAG] /api/db/migrate response:', data);
       if (data.success) {
         alert(importMode === 'append' 
           ? `Berhasil menambahkan ${records.length} baris baru ke tabel '${tableName}'!`

@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
   LayoutDashboard,
   UploadCloud,
@@ -25,6 +25,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LogOut,
   User as UserIcon,
   Bell,
@@ -37,7 +38,8 @@ import {
   Briefcase,
   Target,
   BookOpen,
-  FileCheck
+  FileCheck,
+  Brain
 } from 'lucide-react';
 
 interface LayoutShellProps {
@@ -48,7 +50,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { dbType, connectionStatus, connectionMessage, dbConfig } = useDb();
+  const { dbType, connectionStatus, connectionMessage, dbConfig, getHeaders } = useDb();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -57,26 +59,41 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
     role: string; 
     avatarUrl?: string; 
     fullName?: string; 
+    permissions?: Record<string, boolean>;
   } | null>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const headers = getHeaders();
+        const res = await fetch('/api/auth/me', { headers });
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            setUser(data.user);
+            setUser(data.data || data.user);
           } else {
-            // Redirect to login if session missing and not on login page
+            // Force logout to clear cookie if session is invalid for current DB
             if (pathname !== '/login') {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              setUser(null);
               router.push('/login');
             }
           }
         } else {
           if (pathname !== '/login') {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            setUser(null);
             router.push('/login');
           }
         }
@@ -85,35 +102,204 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       }
     };
     fetchUser();
-  }, [pathname, router]);
+  }, [pathname, router, getHeaders]);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const headers = getHeaders();
+      const res = await fetch('/api/notifications', { headers });
+      const resData = await res.json();
+      if (resData.success) {
+        setNotifications(resData.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
+  }, [getHeaders]);
+
+  const fetchActivities = useCallback(async () => {
+    try {
+      const headers = getHeaders();
+      const res = await fetch('/api/activity?limit=30', { headers });
+      const resData = await res.json();
+      if (resData.success) {
+        setActivities(resData.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch activity logs:', e);
+    }
+  }, [getHeaders]);
+
+  const fetchNavigation = useCallback(async () => {
+    try {
+      const headers = getHeaders();
+      const res = await fetch('/api/workbooks/navigation', { headers });
+      const resData = await res.json();
+      if (resData.success) {
+        setWorkspaces(resData.data?.workspaces || []);
+      }
+    } catch (err) {
+      console.error('Failed to load navigation structure:', err);
+    }
+  }, [getHeaders]);
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (res.ok) {
         setUser(null);
-        router.push('/login');
-        router.refresh();
+        router.replace('/login');
+      } else {
+        console.error('Logout failed');
       }
     } catch (e) {
       console.error('Logout error:', e);
+    } finally {
+      setIsLoggingOut(false);
+      setLogoutModalOpen(false);
     }
   };
 
-  const navigation = [
-    { name: 'Dasbor', href: '/', icon: LayoutDashboard },
-    { name: 'Monitoring Rekomendasi BPK', href: '/rekomendasi', icon: FileCheck },
-    { name: 'Monitoring TLHP', href: '/tlhp', icon: ClipboardCheck },
-    { name: 'Data Pemantauan', href: '/data-pemantauan', icon: Database },
-    { name: 'Integrasi Data', href: '/import', icon: UploadCloud },
-    { name: 'Monitoring & Analisis', href: '/monitoring-analisis', icon: BarChart3 },
-    { name: 'Data Governance', href: '/data-governance', icon: ShieldCheck },
-    { name: 'Laporan Pengawasan', href: '/reports', icon: FileText },
-    { name: 'Log Audit', href: '/audit', icon: History },
-    { name: 'Manajemen Pengguna', href: '/users', icon: Users },
-    { name: 'Repositori Regulasi', href: '/regulasi', icon: BookOpen },
-    { name: 'Pengaturan', href: '/settings', icon: SettingsIcon },
+  useEffect(() => {
+    setMounted(true);
+    const storedSidebar = localStorage.getItem('sidata_sidebar_collapsed');
+    if (storedSidebar === 'true') {
+      setSidebarCollapsed(true);
+    }
+    if (user) {
+      fetchNotifications();
+      fetchActivities();
+      fetchNavigation();
+    }
+  }, [user, dbType, connectionStatus, pathname, dbConfig, fetchNotifications, fetchActivities, fetchNavigation]);
+
+  // Mark all unread notifications as read when opening notifications menu
+  const handleOpenNotifications = async () => {
+    const isOpening = !notificationsOpen;
+    setNotificationsOpen(isOpening);
+    
+    if (isOpening) {
+      const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
+      if (unreadIds.length > 0) {
+        try {
+          const headers = getHeaders();
+          await fetch('/api/notifications', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify({ notificationIds: unreadIds })
+          });
+          // Optimistically update notifications to read
+          setNotifications(prev => prev.map(n => unreadIds.includes(n.id) ? { ...n, isRead: true } : n));
+        } catch (e) {
+          console.error('Failed to mark notifications read:', e);
+        }
+      }
+    }
+  };
+
+  const handleOpenActivity = () => {
+    const isOpening = !activityOpen;
+    setActivityOpen(isOpening);
+    if (isOpening) {
+      fetchActivities();
+    }
+  };
+
+  type NavigationGroup = {
+    id: string;
+    label: string;
+    icon: any;
+    href?: string;
+    perm?: string;
+    children?: { name: string; href: string; icon: any; perm?: string; role?: string }[];
+  };
+
+  const navigationGroups: NavigationGroup[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+    {
+      id: 'monitoring-tl',
+      label: 'Monitoring TL',
+      icon: Activity,
+      children: [
+        { name: 'Monitoring Rekomendasi BPK', href: '/rekomendasi', icon: FileCheck },
+        { name: 'Monitoring TLHP', href: '/tlhp', icon: ClipboardCheck },
+      ]
+    },
+    {
+      id: 'input-data',
+      label: 'Input Data',
+      icon: Database,
+      children: [
+        { name: 'Integrasi Data', href: '/import', icon: UploadCloud },
+        { name: 'Update TL', href: '/reports', icon: FileText },
+        { name: 'Data Pemantauan', href: '/data-pemantauan', icon: Database },
+      ]
+    },
+    {
+      id: 'analisis-tl',
+      label: 'Analisis TL',
+      icon: BarChart3,
+      children: [
+        { name: 'Monitoring & Analisis', href: '/monitoring-analisis', icon: BarChart3 },
+        { name: 'IKU', href: '/iku', icon: Target },
+        { name: 'Early Warning System', href: '/ews', icon: AlertOctagon },
+        { name: 'Asisten AI SIDATA', href: '/assistant', icon: Brain },
+      ]
+    },
+    {
+      id: 'administrasi',
+      label: 'Administrasi',
+      icon: SettingsIcon,
+      children: [
+        { name: 'Data Governance', href: '/data-governance', icon: ShieldCheck, perm: 'system.manage' },
+        { name: 'Log Audit', href: '/audit', icon: History, perm: 'system.manage' },
+        { name: 'Manajemen Pengguna', href: '/users', icon: Users, perm: 'user.manage' },
+        { name: 'Manajemen Dataset', href: '/datasets', icon: Database, role: 'ADMIN_PUSAT' },
+        { name: 'Profile', href: '/settings', icon: UserIcon },
+      ]
+    }
   ];
+
+  const visibleNavigationGroups = navigationGroups.map(group => {
+    if (!group.children) return group;
+    const filteredChildren = group.children.filter(child => {
+      if (child.role) return user?.role === child.role;
+      if (child.perm) {
+        if (Array.isArray(user?.permissions)) {
+          return user.permissions.includes(child.perm);
+        }
+        return !!user?.permissions?.[child.perm];
+      }
+      return true;
+    });
+    return { ...group, children: filteredChildren };
+  }).filter(group => {
+    if (group.perm) {
+      if (Array.isArray(user?.permissions)) {
+        if (!user.permissions.includes(group.perm)) return false;
+      } else {
+        if (!user?.permissions?.[group.perm]) return false;
+      }
+    }
+    if (group.children && group.children.length === 0) return false;
+    return true;
+  });
+
+  useEffect(() => {
+    let activeId: string | null = null;
+    for (const group of navigationGroups) {
+      if (group.children?.some(child => pathname === child.href || pathname.startsWith(child.href + '/'))) {
+        activeId = group.id;
+        break;
+      }
+    }
+    setExpandedGroup(activeId);
+  }, [pathname]);
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroup(prev => prev === groupId ? null : groupId);
+  };
 
   // Helper to translate route to Breadcrumb name
   const getBreadcrumbs = () => {
@@ -129,16 +315,19 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         
         // Translate special routes
         if (part === 'import') name = 'Integrasi Data';
-        else if (part === 'data-pemantauan') name = 'Data Pemantauan';
-        else if (part === 'monitoring-analisis') name = 'Monitoring & Analisis';
         else if (part === 'data-governance') name = 'Data Governance';
+        else if (part === 'datasets') name = 'Manajemen Dataset';
         else if (part === 'reports') name = 'Laporan Pengawasan';
         else if (part === 'users') name = 'Manajemen Pengguna';
         else if (part === 'audit') name = 'Log Audit Pengawasan';
-        else if (part === 'settings') name = 'Enterprise Settings';
-        else if (part === 'rekomendasi') name = 'Monitoring Rekomendasi BPK';
+        else if (part === 'settings') name = 'Profile';
+        else if (part === 'assistant') name = 'Asisten AI SIDATA';
         else if (part === 'tlhp') name = 'Monitoring TLHP';
-        else if (part === 'regulasi') name = 'Repositori Regulasi';
+        else if (part === 'rekomendasi') name = 'Monitoring Rekomendasi BPK';
+        else if (part === 'data-pemantauan') name = 'Data Pemantauan';
+        else if (part === 'monitoring-analisis') name = 'Monitoring & Analisis';
+        else if (part === 'ews') name = 'Early Warning System';
+        else if (part === 'iku') name = 'IKU';
         
         breadcrumbs.push({ name, href: url });
       });
@@ -218,31 +407,127 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         </div>
 
         {/* Navigation Section */}
-        <nav className="flex-1 px-2.5 py-4 space-y-0.5 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
+        <nav className="flex-1 px-2.5 py-4 space-y-1 overflow-y-auto">
+          {visibleNavigationGroups.map((group) => {
+            const isExpanded = expandedGroup === group.id;
+            const Icon = group.icon;
+            
+            if (group.href) {
+              const isActive = pathname === group.href;
+              return (
+                <Link
+                  key={group.id}
+                  href={group.href}
+                  className={`group flex items-center px-3 py-2 text-sm font-semibold rounded-md transition-all duration-150 ${
+                    isActive
+                      ? 'bg-[#1D4ED8] text-white shadow-sm shadow-[#1D4ED8]/30'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                  title={sidebarCollapsed ? group.label : undefined}
+                >
+                  <Icon
+                    className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${
+                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-white group-hover:scale-105'
+                    } ${sidebarCollapsed ? 'mr-0' : 'mr-3'}`}
+                  />
+                  {!sidebarCollapsed && <span>{group.label}</span>}
+                </Link>
+              );
+            }
+
+            const hasActiveChild = group.children?.some(c => pathname === c.href || pathname.startsWith(c.href + '/'));
+
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`group flex items-center px-3 py-2 text-sm font-semibold rounded-md transition-all duration-150 ${
-                  isActive
-                    ? 'bg-[#1D4ED8] text-white shadow-sm shadow-[#1D4ED8]/30'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-                title={sidebarCollapsed ? item.name : undefined}
-              >
-                <Icon
-                  className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${
-                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-white group-hover:scale-105'
-                  } ${sidebarCollapsed ? 'mr-0' : 'mr-3'}`}
-                />
-                {!sidebarCollapsed && <span>{item.name}</span>}
-              </Link>
+              <div key={group.id} className="space-y-0.5">
+                <button
+                  onClick={() => {
+                    if (sidebarCollapsed) {
+                      setSidebarCollapsed(false);
+                      if (!isExpanded) toggleGroup(group.id);
+                    } else {
+                      toggleGroup(group.id);
+                    }
+                  }}
+                  className={`w-full group flex items-center justify-between px-3 py-2 text-sm font-semibold rounded-md transition-all duration-150 ${
+                    hasActiveChild && !isExpanded && sidebarCollapsed
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                  title={sidebarCollapsed ? group.label : undefined}
+                >
+                  <div className="flex items-center">
+                    <Icon
+                      className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${
+                        hasActiveChild && sidebarCollapsed ? 'text-white' : 'text-slate-400 group-hover:text-white group-hover:scale-105'
+                      } ${sidebarCollapsed ? 'mr-0' : 'mr-3'}`}
+                    />
+                    {!sidebarCollapsed && <span>{group.label}</span>}
+                  </div>
+                  {!sidebarCollapsed && (
+                    isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+
+                {isExpanded && !sidebarCollapsed && group.children && (
+                  <div className="mt-1 space-y-0.5">
+                    {group.children.map((child) => {
+                      const isActive = pathname === child.href;
+                      const ChildIcon = child.icon;
+                      return (
+                        <Link
+                          key={child.name}
+                          href={child.href}
+                          className={`group flex items-center pl-10 pr-3 py-2 text-xs font-semibold rounded-md transition-all duration-150 ${
+                            isActive
+                              ? 'bg-[#1D4ED8] text-white shadow-sm shadow-[#1D4ED8]/30'
+                              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <ChildIcon className={`h-4 w-4 mr-2 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                          <span>{child.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
+
+          {/* Dynamic Workspaces & Datasets */}
+          {!sidebarCollapsed && workspaces.length > 0 && (
+            <div className="pt-4 mt-4 border-t border-slate-800 space-y-3">
+              {workspaces.map((ws) => (
+                <div key={ws.id} className="space-y-1">
+                  <span className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    {ws.name}
+                  </span>
+                  <div className="space-y-0.5">
+                    {ws.datasets.map((ds: any) => {
+                      const href = `/workbooks/${ws.id}/${ds.id}`;
+                      const isActive = pathname === href || pathname.startsWith(href + '/');
+                      return (
+                        <Link
+                          key={ds.id}
+                          href={href}
+                          className={`group flex items-center px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                          }`}
+                        >
+                          <Table className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                          <span className="truncate">{ds.displayName}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
+
 
         {/* User profile inside sidebar */}
         {user && !sidebarCollapsed && (
@@ -275,7 +560,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 </span>
               </div>
               <button
-                onClick={handleLogout}
+                onClick={() => setLogoutModalOpen(true)}
                 className="p-1.5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 rounded-md transition-colors"
                 title="Keluar"
               >
@@ -328,35 +613,47 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             {/* Notification bell and menu */}
             <div className="relative">
               <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                onClick={handleOpenNotifications}
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors relative"
                 title="Notifikasi"
               >
                 <Bell className="h-4 w-4" />
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                {notifications.some(n => !n.isRead) && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
+                )}
               </button>
               
               {notificationsOpen && (
                 <div className="absolute right-0 mt-2 w-80 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-lg py-1 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300 flex justify-between">
-                    <span>Notifikasi Pengawasan</span>
+                    <span>Notifikasi Kolaborasi</span>
                     <span className="text-[#1D4ED8] text-[10px] hover:underline cursor-pointer" onClick={() => setNotificationsOpen(false)}>Tutup</span>
                   </div>
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    <div className="px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <p className="font-semibold text-rose-500">Temuan Risiko Tinggi Meningkat</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">DJP mencatat kenaikan temuan krusial baru.</p>
-                      <span className="text-[9px] text-slate-400">10 menit yang lalu</span>
-                    </div>
-                    <div className="px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <p className="font-semibold text-emerald-600">Integrasi Data Pajak Sukses</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Tabel 'Tax_Revenue_FY23_Final' berhasil disinkronisasi.</p>
-                      <span className="text-[9px] text-slate-400">1 jam yang lalu</span>
-                    </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[280px] overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-slate-400 italic">Tidak ada notifikasi baru.</div>
+                    ) : (
+                      notifications.map((item) => (
+                        <div key={item.id} className={`px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${!item.isRead ? 'bg-blue-500/5 dark:bg-blue-500/10' : ''}`}>
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">{item.title}</p>
+                          <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-0.5">{item.message}</p>
+                          <span className="text-[9px] text-slate-400">{new Date(item.createdAt).toLocaleString()}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Collaborative Activity Feed toggle button */}
+            <button
+              onClick={handleOpenActivity}
+              className={`p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors relative ${activityOpen ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
+              title="Lini Masa Aktivitas Kolaboratif"
+            >
+              <Activity className="h-4 w-4" />
+            </button>
 
             {/* Help Support */}
             <button
@@ -373,7 +670,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {!mounted ? <div className="h-4 w-4" /> : theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             
             {/* User Profile Avatar dropdown */}
@@ -427,7 +724,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                     <button
                       onClick={() => {
                         setProfileMenuOpen(false);
-                        handleLogout();
+                        setLogoutModalOpen(true);
                       }}
                       className="w-full flex items-center gap-2 px-4 py-2 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 font-bold text-left transition-colors border-t border-slate-50 dark:border-slate-850 cursor-pointer"
                     >
@@ -475,26 +772,104 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               </div>
             </div>
 
-            <nav className="flex-grow px-3 space-y-1 overflow-y-auto">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
+            <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
+            {visibleNavigationGroups.map((group) => {
+              const isActive = pathname === group.href || (group.children && group.children.some(c => pathname === c.href));
+              const isExpanded = expandedGroup === group.id;
+              const Icon = group.icon;
+                
+                if (group.href) {
+                  const isActive = pathname === group.href;
+                  return (
+                    <Link
+                      key={group.id}
+                      href={group.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center px-3 py-2 text-sm font-semibold rounded-md transition-all ${
+                        isActive
+                          ? 'bg-[#1D4ED8] text-white shadow-sm'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="mr-3 h-5 w-5" />
+                      {group.label}
+                    </Link>
+                  );
+                }
+
                 return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center px-3 py-2 text-sm font-semibold rounded-md transition-all ${
-                      isActive
-                        ? 'bg-[#1D4ED8] text-white shadow-sm'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.name}
-                  </Link>
+                  <div key={group.id} className="space-y-0.5">
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm font-semibold rounded-md transition-all text-slate-400 hover:bg-slate-800 hover:text-white`}
+                    >
+                      <div className="flex items-center">
+                        <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                        <span>{group.label}</span>
+                      </div>
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+
+                    {isExpanded && group.children && (
+                      <div className="mt-1 space-y-0.5">
+                        {group.children.map((child) => {
+                          const isActive = pathname === child.href;
+                          const ChildIcon = child.icon;
+                          return (
+                            <Link
+                              key={child.name}
+                              href={child.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`flex items-center pl-10 pr-3 py-2 text-sm font-semibold rounded-md transition-all ${
+                                isActive
+                                  ? 'bg-[#1D4ED8] text-white shadow-sm'
+                                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                              }`}
+                            >
+                              <ChildIcon className="mr-3 h-4 w-4 flex-shrink-0" />
+                              {child.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
+
+              {/* Dynamic Workspaces & Datasets (Mobile) */}
+              {workspaces.length > 0 && (
+                <div className="pt-4 mt-4 border-t border-slate-800 space-y-3">
+                  {workspaces.map((ws) => (
+                    <div key={ws.id} className="space-y-1">
+                      <span className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        {ws.name}
+                      </span>
+                      <div className="space-y-0.5">
+                        {ws.datasets.map((ds: any) => {
+                          const href = `/workbooks/${ws.id}/${ds.id}`;
+                          const isActive = pathname === href || pathname.startsWith(href + '/');
+                          return (
+                            <Link
+                              key={ds.id}
+                              href={href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`flex items-center px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
+                                isActive
+                                  ? 'bg-blue-600 text-white shadow-sm'
+                                  : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                              }`}
+                            >
+                              <Table className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                              <span className="truncate">{ds.displayName}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </nav>
             
             {user && (
@@ -517,6 +892,79 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Slide-over Activity Feed Drawer */}
+      {activityOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setActivityOpen(false)} />
+          
+          <div className="relative w-80 sm:w-96 bg-white dark:bg-[#111827] border-l border-slate-200 dark:border-slate-800 h-full flex flex-col p-6 shadow-2xl z-50 animate-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4 mb-4">
+              <h3 className="font-extrabold text-slate-850 dark:text-slate-200 text-sm flex items-center gap-2">
+                <Activity className="h-4.5 w-4.5 text-blue-500" />
+                Lini Masa Aktivitas Kolaboratif
+              </h3>
+              <button onClick={() => setActivityOpen(false)} className="text-slate-400 hover:text-slate-650 rounded p-1 cursor-pointer">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs divide-y divide-slate-100 dark:divide-slate-800">
+              {activities.length === 0 ? (
+                <p className="text-slate-400 italic text-center py-10">Belum ada aktivitas kolaborasi tercatat.</p>
+              ) : (
+                activities.map((act) => (
+                  <div key={act.id} className="relative pl-5 py-3 first:pt-0">
+                    <div className="absolute left-0 top-4 h-2 w-2 rounded-full bg-blue-500" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">{act.description}</p>
+                    <div className="flex justify-between items-center text-[9.5px] text-slate-450 dark:text-slate-400 mt-1">
+                      <span className="font-semibold text-blue-500">@{act.actorUsername}</span>
+                      <span>{new Date(act.timestamp).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {logoutModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-500 flex items-center justify-center mb-4">
+                <LogOut className="h-6 w-6 ml-1" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Keluar dari SIDATA?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                Anda akan keluar dari sesi saat ini.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setLogoutModalOpen(false)}
+                  disabled={isLoggingOut}
+                  className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isLoggingOut ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    'Logout'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

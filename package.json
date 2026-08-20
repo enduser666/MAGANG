@@ -6,11 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx src/tests/run_tests.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@tanstack/react-virtual": "^3.14.5",
     "lucide-react": "^1.21.0",
     "mariadb": "^3.5.3",
     "mysql2": "^3.22.5",
@@ -32,6 +34,7 @@
     "eslint-config-next": "16.2.9",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
