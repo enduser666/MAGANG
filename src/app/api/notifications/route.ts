@@ -1,6 +1,6 @@
-import { ApiResponse } from '@/lib/api-response';
-import { NotificationService, initializeNotifListenersForDb } from '@/services/NotificationService';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { NotificationService, initializeNotifListenersForDb } from '@/backend/services/NotificationService';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request, user) => {
   try {

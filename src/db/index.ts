@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '../generated/prisma/client';
-import { hashPassword } from '../lib/auth';
-import { metricsCollector } from '../lib/observability';
-import { config } from '../lib/config';
-
+import { hashPassword } from '../backend/lib/auth';
+import { metricsCollector } from '../backend/lib/observability';
+import { config } from '../backend/lib/config';
+import { MySQLAdapter } from './adapters/MySQLAdapter';
 export interface ColumnDefinition {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'date';
@@ -413,8 +413,6 @@ function parseDbConfig(configStr: string | null): string | null {
     return null;
   }
 }
-
-import { MySQLAdapter } from './adapters/MySQLAdapter';
 
 const globalForDb = globalThis as unknown as {
   mysqlAdapterInstance: MySQLAdapter | null;

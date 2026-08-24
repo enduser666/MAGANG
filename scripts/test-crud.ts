@@ -1,5 +1,5 @@
 import { DatasetMutationRuntime } from '../src/runtime/DatasetMutationRuntime';
-import { bootstrapDbListeners } from '../src/lib/bootstrap';
+import { bootstrapDbListeners } from '../src/backend/lib/bootstrap';
 import { DatasetRuntime } from '../src/runtime/DatasetRuntime';
 import { getDbClient } from '../src/db/index';
 

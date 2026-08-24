@@ -1,6 +1,6 @@
 import { QueryEngine } from './QueryEngine';
 import { DatasetRuntime } from './DatasetRuntime';
-import { DashboardMetadata, WidgetConfig, WidgetType, ColumnMetadata } from '../lib/metadata-contract';
+import { DashboardMetadata, WidgetConfig, WidgetType, ColumnMetadata } from '@/backend/lib/metadata-contract';
 
 export interface WidgetPayload {
   config: WidgetConfig;

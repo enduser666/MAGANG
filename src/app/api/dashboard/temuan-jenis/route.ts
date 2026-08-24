@@ -1,6 +1,6 @@
 import { getDbClient } from '@/db';
-import { withAuth } from '@/lib/auth';
-import { mapJenisPemeriksaan, JENIS_PEMERIKSAAN_CATEGORIES } from '@/lib/jenisMapper';
+import { withAuth } from '@/backend/lib/auth';
+import { mapJenisPemeriksaan, JENIS_PEMERIKSAAN_CATEGORIES } from '@/backend/lib/jenisMapper';
 
 export const GET = withAuth(async (request, user) => {
   const startTime = Date.now();
@@ -11,7 +11,7 @@ export const GET = withAuth(async (request, user) => {
 
     const defaultEmptyData = JENIS_PEMERIKSAAN_CATEGORIES.map(name => ({ name, Temuan: 0 }));
 
-    if (dbType === 'sandbox') {
+    if (dbType === 'sandbox' && db.isMock) {
       return Response.json({ success: true, schemaReady: false, data: defaultEmptyData });
     }
 

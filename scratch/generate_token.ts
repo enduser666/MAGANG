@@ -1,4 +1,4 @@
-import { signToken } from '../src/lib/auth';
+import { signToken } from '../src/backend/lib/auth';
 
 const adminPusat = signToken({
   userId: 1,

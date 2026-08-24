@@ -1,6 +1,6 @@
-import { ApiResponse } from '@/lib/api-response';
-import { AnalyticsService } from '@/services/AnalyticsService';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { AnalyticsService } from '@/backend/services/AnalyticsService';
+import { withAuth } from '@/backend/lib/auth';
 import { getDbClient } from '@/db';
 
 export const GET = withAuth(async (request, user) => {

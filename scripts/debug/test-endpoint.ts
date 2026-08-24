@@ -1,6 +1,6 @@
 import { GET } from '../../src/app/api/dashboard/analytics/route';
 import { NextRequest } from 'next/server';
-import { requestContextStorage } from '../../src/lib/observability';
+import { requestContextStorage } from '../../src/backend/lib/observability';
 
 async function run() {
   const req = new NextRequest('http://localhost:3000/api/dashboard/analytics');

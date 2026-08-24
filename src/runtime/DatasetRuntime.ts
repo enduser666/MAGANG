@@ -1,5 +1,5 @@
 import { getDbClient } from '../db';
-import { DatasetMetadata, ColumnMetadata, RelationshipMetadata, PermissionMetadata } from '../lib/metadata-contract';
+import { DatasetMetadata, ColumnMetadata, RelationshipMetadata, PermissionMetadata } from '@/backend/lib/metadata-contract';
 
 export class DatasetRuntime {
   private db: any;

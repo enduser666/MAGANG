@@ -1,5 +1,5 @@
 import { getDbClient } from '@/db';
-import { withAuth } from '@/lib/auth';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request, user) => {
   try {

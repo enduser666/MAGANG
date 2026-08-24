@@ -1,7 +1,7 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 import { getDbClient } from '@/db';
-import { AnalyticsService } from '@/services/AnalyticsService';
+import { AnalyticsService } from '@/backend/services/AnalyticsService';
 
 export const POST = withAuth(async (request, user, { params }) => {
   if (user.role !== 'ADMIN_PUSAT') {

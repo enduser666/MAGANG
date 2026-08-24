@@ -1,7 +1,7 @@
-import { ApiResponse } from '@/lib/api-response';
-import { PresenceService } from '@/services/PresenceService';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { PresenceService } from '@/backend/services/PresenceService';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
+import { withAuth } from '@/backend/lib/auth';
 
 export const POST = withAuth(async (request, user) => {
   try {

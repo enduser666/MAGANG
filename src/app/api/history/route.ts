@@ -1,7 +1,7 @@
-import { ApiResponse } from '@/lib/api-response';
-import { ImportHistoryService } from '@/services/ImportHistoryService';
-import { AuditService } from '@/services/AuditService';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { ImportHistoryService } from '@/backend/services/ImportHistoryService';
+import { AuditService } from '@/backend/services/AuditService';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request, user) => {
   try {

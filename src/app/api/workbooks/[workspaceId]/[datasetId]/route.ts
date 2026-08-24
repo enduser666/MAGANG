@@ -1,8 +1,8 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 import { DatasetRuntime } from '@/runtime/DatasetRuntime';
 import { QueryEngine } from '@/runtime/QueryEngine';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
 import { DatasetMutationRuntime } from '@/runtime/DatasetMutationRuntime';
 
 export const GET = withAuth(async (request, user, { params }) => {

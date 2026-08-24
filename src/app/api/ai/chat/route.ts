@@ -1,7 +1,7 @@
 import { getDbClient } from '@/db';
-import { AIAssistantService } from '@/services/ai/assistant';
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { AIAssistantService } from '@/backend/services/ai/assistant';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 
 export const POST = withAuth(async (request, sessionUser) => {
   try {

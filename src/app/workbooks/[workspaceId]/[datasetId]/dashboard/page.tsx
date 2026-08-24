@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDb } from '@/providers/DbContext';
 import { LayoutDashboard, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
-import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
+import { WidgetRenderer } from '@/frontend/components/widgets/WidgetRenderer';
 import { WidgetPayload } from '@/runtime/DashboardRuntime';
-import { DashboardMetadata } from '@/lib/metadata-contract';
+import { DashboardMetadata } from '@/backend/lib/metadata-contract';
 import { useRouter } from 'next/navigation';
 
 export default function DynamicDashboardPage({ params }: { params: Promise<{ workspaceId: string; datasetId: string }> }) {

@@ -1,11 +1,11 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
-import { PresenceService } from '@/services/PresenceService';
-import { AuditService } from '@/services/AuditService';
-import { WorkflowEngine } from '@/services/WorkflowEngine';
-import { TableRecordService } from '@/services/TableRecordService';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
-import { EventBus, BUSINESS_EVENTS } from '@/services/EventBus';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
+import { PresenceService } from '@/backend/services/PresenceService';
+import { AuditService } from '@/backend/services/AuditService';
+import { WorkflowEngine } from '@/backend/services/WorkflowEngine';
+import { TableRecordService } from '@/backend/services/TableRecordService';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
+import { EventBus, BUSINESS_EVENTS } from '@/backend/services/EventBus';
 
 export const PUT = withAuth(async (request, user, { params }) => {
   try {

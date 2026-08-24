@@ -1,12 +1,12 @@
 import { cookies } from 'next/headers';
 import { getDbClient } from '@/db';
-import { verifyPassword, signToken, ROLE_PERMISSIONS } from '@/lib/auth';
-import { ApiResponse } from '@/lib/api-response';
-import { Validators } from '@/lib/validators';
-import { rateLimit } from '@/lib/rate-limiter';
-import { config } from '@/lib/config';
+import { verifyPassword, signToken, ROLE_PERMISSIONS } from '@/backend/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { Validators } from '@/backend/lib/validators';
+import { rateLimit } from '@/backend/lib/rate-limiter';
+import { config } from '@/backend/lib/config';
 
-import { withRequestContext } from '@/lib/observability';
+import { withRequestContext } from '@/backend/lib/observability';
 
 export const POST = withRequestContext(async (request: Request) => {
   try {

@@ -1,6 +1,6 @@
-import { ApiResponse } from '@/lib/api-response';
+import { ApiResponse } from '@/backend/lib/api-response';
 import { NavigationService } from '@/runtime/NavigationService';
-import { withAuth } from '@/lib/auth';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request) => {
   try {

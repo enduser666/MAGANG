@@ -1,5 +1,5 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 import { getDbClient } from '@/db';
 
 export const PUT = withAuth(async (request, user, { params }) => {

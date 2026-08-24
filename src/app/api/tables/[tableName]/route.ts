@@ -1,9 +1,9 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
-import { EventBus, BUSINESS_EVENTS } from '@/services/EventBus';
-import { AuditService } from '@/services/AuditService';
-import { TableRecordService } from '@/services/TableRecordService';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
+import { EventBus, BUSINESS_EVENTS } from '@/backend/services/EventBus';
+import { AuditService } from '@/backend/services/AuditService';
+import { TableRecordService } from '@/backend/services/TableRecordService';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
 
 export const GET = withAuth(async (request, user, { params }) => {
   try {

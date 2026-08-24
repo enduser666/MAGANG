@@ -1,9 +1,9 @@
-import { ApiResponse } from '@/lib/api-response';
+import { ApiResponse } from '@/backend/lib/api-response';
 import { getDbClient } from '@/db';
-import { WorkflowEngine } from '@/services/WorkflowEngine';
-import { UserService } from '@/services/UserService';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
-import { withAuth } from '@/lib/auth';
+import { WorkflowEngine } from '@/backend/services/WorkflowEngine';
+import { UserService } from '@/backend/services/UserService';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
+import { withAuth } from '@/backend/lib/auth';
 
 export const POST = withAuth(async (request, user) => {
   try {

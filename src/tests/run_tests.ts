@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { signToken, verifyToken, hashPassword, verifyPassword } from '../lib/auth';
+import { signToken, verifyToken, hashPassword, verifyPassword } from '@/backend/lib/auth';
 import { 
   ValidationError, 
   UnauthorizedError, 
@@ -12,16 +12,16 @@ import {
   ConflictError, 
   InternalServerError,
   AppError 
-} from '../lib/errors';
-import { metricsCollector } from '../lib/observability';
-import { WorkflowEngine } from '../services/WorkflowEngine';
-import { PresenceService } from '../services/PresenceService';
-import { NotificationService } from '../services/NotificationService';
-import { ActivityFeedService } from '../services/ActivityFeedService';
-import { EventBus } from '../services/EventBus';
+} from '@/backend/lib/errors';
+import { metricsCollector } from '@/backend/lib/observability';
+import { WorkflowEngine } from '@/backend/services/WorkflowEngine';
+import { PresenceService } from '@/backend/services/PresenceService';
+import { NotificationService } from '@/backend/services/NotificationService';
+import { ActivityFeedService } from '@/backend/services/ActivityFeedService';
+import { EventBus } from '@/backend/services/EventBus';
 import { ApprovalRepository } from '../repositories/ApprovalRepository';
 import { getDbClient, validateDatasetSchema } from '../db';
-import { bootstrapDbListeners } from '../lib/bootstrap';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
 import { PersistenceService } from '../runtime/PersistenceService';
 
 

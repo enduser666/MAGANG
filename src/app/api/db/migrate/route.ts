@@ -1,6 +1,6 @@
 import { getDbClient } from '@/db';
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 import { WorkbookIngestionOrchestrator } from '@/runtime/WorkbookIngestionOrchestrator';
 
 export const POST = withAuth(async (request, user) => {
@@ -121,7 +121,7 @@ export const POST = withAuth(async (request, user) => {
           try {
             const fs = await import('fs');
             const path = await import('path');
-            const sandboxPath = path.join(process.cwd(), 'src/lib/sandbox_db.json');
+            const sandboxPath = path.join(process.cwd(), 'src/db/sandbox_db.json');
             const stat = fs.statSync(sandboxPath);
             const raw = fs.readFileSync(sandboxPath, 'utf8');
             const parsed = JSON.parse(raw);

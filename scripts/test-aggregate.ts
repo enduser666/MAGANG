@@ -1,5 +1,5 @@
 import { QueryEngine } from '../src/runtime/QueryEngine';
-import { bootstrapDbListeners } from '../src/lib/bootstrap';
+import { bootstrapDbListeners } from '../src/backend/lib/bootstrap';
 import { getDbClient } from '../src/db/index';
 
 async function run() {

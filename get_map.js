@@ -1,1 +1,0 @@
-const mysql = require('mysql2/promise'); mysql.createConnection({host:'localhost', user:'root', database:'sidata_test', port: 3306}).then(c => c.query('SELECT column_mapping FROM sys_datasets WHERE table_name = \'rekap_rekomendasi_minimize__2_\'').then(([r]) => { console.log(r[0].column_mapping); process.exit(0); }));

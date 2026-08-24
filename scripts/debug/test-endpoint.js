@@ -38,7 +38,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var route_1 = require("../../src/app/api/dashboard/analytics/route");
 var server_1 = require("next/server");
-var observability_1 = require("../../src/lib/observability");
+var observability_1 = require("../../src/backend/lib/observability");
 function run() {
     return __awaiter(this, void 0, void 0, function () {
         var req;

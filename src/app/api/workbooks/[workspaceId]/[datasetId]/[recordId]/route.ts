@@ -1,9 +1,9 @@
-import { ApiResponse } from '@/lib/api-response';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 import { DatasetMutationRuntime } from '@/runtime/DatasetMutationRuntime';
 import { DatasetRuntime } from '@/runtime/DatasetRuntime';
 import { getDbClient } from '@/db';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
 
 // GET Record
 export const GET = withAuth(async (request, user, { params }) => {

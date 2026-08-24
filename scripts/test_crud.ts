@@ -1,4 +1,4 @@
-import { TableRecordService } from '../src/services/TableRecordService';
+import { TableRecordService } from '../src/backend/services/TableRecordService';
 import { getDbClient } from '../src/db/index';
 
 async function main() {

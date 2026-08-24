@@ -46,6 +46,8 @@ export default function MonitoringTlhp() {
   const [kpi, setKpi] = useState({ total: 0, selesai: 0, proses: 0, belum: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
+  const { getHeaders } = useDb();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
@@ -55,10 +57,11 @@ export default function MonitoringTlhp() {
     const fetchAll = async () => {
       setIsLoading(true);
       try {
+        const headers = getHeaders();
         const [tblRes, anlRes, katRes] = await Promise.all([
-          fetch('/api/tables/temuan?limit=100'),
-          fetch('/api/dashboard/analytics?tableName=temuan'),
-          fetch('/api/dashboard/temuan-jenis')
+          fetch('/api/tables/temuan?limit=100', { headers }),
+          fetch('/api/dashboard/analytics?tableName=temuan', { headers }),
+          fetch('/api/dashboard/temuan-jenis', { headers })
         ]);
 
         const tbl = await tblRes.json();
@@ -68,15 +71,15 @@ export default function MonitoringTlhp() {
         if (tbl.success) {
           const mapping = tbl.metadata?.columnMapping || {};
           const getCol = (key: string) => mapping[key]?.column || '';
-          
+
           const mapped = (tbl.data?.rows || []).map((r: any, i: number) => {
             const rawStatus = r[getCol('status')] || 'Unknown';
             const normStat = String(rawStatus).trim().toLowerCase();
             let p = 0;
             if (['sesuai', 'tptd', 'diusulkan sesuai', 'diusulkan tptd'].includes(normStat)) {
-               p = 100;
+              p = 100;
             } else if (normStat === 'dalam proses') {
-               p = 50;
+              p = 50;
             }
             return {
               id: r.id || i,
@@ -86,7 +89,7 @@ export default function MonitoringTlhp() {
               status: rawStatus,
               target: r[getCol('period')] || '-',
               progress: p,
-              updated: r.updated_at ? new Date(r.updated_at).toISOString().slice(0,10) : '-',
+              updated: r.updated_at ? new Date(r.updated_at).toISOString().slice(0, 10) : '-',
               year: new Date().getFullYear()
             };
           });
@@ -95,10 +98,10 @@ export default function MonitoringTlhp() {
 
         if (anl.success && anl.data) {
           const d = anl.data;
-          
+
           // KPIs derived strictly from API
           const totalTLHPCount = d.totalRekomendasi || d.totalRecords || 0;
-          const belumCount = d.dynamicStatuses?.find((s: any) => 
+          const belumCount = d.dynamicStatuses?.find((s: any) =>
             s.name.toLowerCase() === 'belum tindaklanjut' || s.name.toLowerCase() === 'belum tindak lanjut'
           )?.value || 0;
 
@@ -114,19 +117,19 @@ export default function MonitoringTlhp() {
             setAvailableStatuses(d.dynamicStatuses.map((s: any) => s.name));
             const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
             setStatusData(d.dynamicStatuses.map((s: any, idx: number) => ({
-               name: s.name,
-               value: s.value,
-               color: colors[idx % colors.length]
+              name: s.name,
+              value: s.value,
+              color: colors[idx % colors.length]
             })).filter((x: any) => x.value > 0));
           }
 
           if (d.unitFindingsData) {
-             setAvailableUnits(d.unitFindingsData.map((u: any) => u.name));
-             setUnitData(d.unitFindingsData.map((u: any) => ({
-                 name: u.name,
-                 Selesai: u.tuntas || 0,
-                 Proses: u.dalamProses || 0
-             })));
+            setAvailableUnits(d.unitFindingsData.map((u: any) => u.name));
+            setUnitData(d.unitFindingsData.map((u: any) => ({
+              name: u.name,
+              Selesai: u.tuntas || 0,
+              Proses: u.dalamProses || 0
+            })));
           }
 
           if (d.trendData) {
@@ -174,7 +177,7 @@ export default function MonitoringTlhp() {
   const handleExport = (format: 'PDF' | 'EXCEL') => {
     const filename = `Laporan_TLHP_${new Date().toISOString().slice(0, 10)}.${format === 'PDF' ? 'pdf' : 'xlsx'}`;
     const fileContent = `SIDATA - TINDAK LANJUT HASIL PENGAWASAN EXPORT\nGenerated: ${new Date().toLocaleString()}\nFormat: ${format}\nTotal Records: ${filteredData.length}`;
-    
+
     const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -184,7 +187,7 @@ export default function MonitoringTlhp() {
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-200">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -215,7 +218,7 @@ export default function MonitoringTlhp() {
 
       {/* KPI Scorecards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        
+
         {/* Total TLHP */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs">
           <div className="flex items-center justify-between text-slate-450 dark:text-slate-400">
@@ -253,7 +256,7 @@ export default function MonitoringTlhp() {
             <AlertCircle className="h-4.5 w-4.5 text-rose-500" />
           </div>
           <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{belum}</p>
-          <span className="text-[9px] text-rose-600 font-bold block mt-1">Perlu Perhatian</span>
+          <span className="text-[9px] text-rose-600 font-bold block mt-1">Segera Ditindaklanjuti</span>
         </div>
 
         {/* Persentase Penyelesaian */}
@@ -272,7 +275,7 @@ export default function MonitoringTlhp() {
 
       {/* Graphical Dashboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Tren Penyelesaian TLHP */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-400 mb-4 flex items-center gap-1.5">
@@ -283,12 +286,12 @@ export default function MonitoringTlhp() {
               <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSelesai" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorProses" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-800" />
@@ -382,7 +385,7 @@ export default function MonitoringTlhp() {
 
       {/* Filters and Datagrid */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-4">
-        
+
         {/* Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
           <div className="flex items-center gap-2">
@@ -470,13 +473,12 @@ export default function MonitoringTlhp() {
                     <td className="px-4 py-3 font-semibold">{item.unit}</td>
                     <td className="px-4 py-3">{item.kategori}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${
-                        item.progress === 100
-                          ? 'bg-emerald-100 text-emerald-850 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-500/10'
-                          : item.progress > 0
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${item.progress === 100
+                        ? 'bg-emerald-100 text-emerald-850 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-500/10'
+                        : item.progress > 0
                           ? 'bg-blue-100 text-blue-850 dark:bg-blue-950/20 dark:text-blue-400 border-blue-500/10 animate-pulse'
                           : 'bg-red-100 text-red-850 dark:bg-red-950/20 dark:text-red-400 border-red-500/10'
-                      }`}>
+                        }`}>
                         {item.status}
                       </span>
                     </td>
@@ -484,10 +486,9 @@ export default function MonitoringTlhp() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden shrink-0">
-                          <div className={`h-full rounded-full ${
-                            item.progress === 100 ? 'bg-emerald-500' :
+                          <div className={`h-full rounded-full ${item.progress === 100 ? 'bg-emerald-500' :
                             item.progress > 0 ? 'bg-blue-500' : 'bg-rose-500'
-                          }`} style={{ width: `${item.progress}%` }} />
+                            }`} style={{ width: `${item.progress}%` }} />
                         </div>
                         <span className="font-bold shrink-0">{item.progress}%</span>
                       </div>

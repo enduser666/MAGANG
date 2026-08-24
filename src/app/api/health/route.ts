@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDbClient } from '@/db';
-import { ApiResponse } from '@/lib/api-response';
-import { withRequestContext, metricsCollector } from '@/lib/observability';
-import { rateLimit } from '@/lib/rate-limiter';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withRequestContext, metricsCollector } from '@/backend/lib/observability';
+import { rateLimit } from '@/backend/lib/rate-limiter';
 import fs from 'fs';
 import path from 'path';
 

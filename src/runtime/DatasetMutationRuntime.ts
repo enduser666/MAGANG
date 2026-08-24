@@ -1,6 +1,6 @@
 import { getDbClient } from '../db';
 import { DatasetRuntime } from './DatasetRuntime';
-import { ColumnMetadata } from '../lib/metadata-contract';
+import { ColumnMetadata } from '@/backend/lib/metadata-contract';
 
 export class DatasetMutationRuntime {
   private db: any;

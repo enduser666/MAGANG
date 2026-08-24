@@ -1,6 +1,6 @@
-import { ApiResponse } from '@/lib/api-response';
-import { ActivityFeedService, initializeActivityListenersForDb } from '@/services/ActivityFeedService';
-import { withAuth } from '@/lib/auth';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { ActivityFeedService, initializeActivityListenersForDb } from '@/backend/services/ActivityFeedService';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request, user) => {
   try {

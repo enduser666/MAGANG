@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifyToken, ROLE_PERMISSIONS } from '@/lib/auth';
+import { verifyToken, ROLE_PERMISSIONS } from '@/backend/lib/auth';
 import { getDbClient } from '@/db';
-import { ApiResponse } from '@/lib/api-response';
+import { ApiResponse } from '@/backend/lib/api-response';
 
 export async function GET(request: Request) {
   try {

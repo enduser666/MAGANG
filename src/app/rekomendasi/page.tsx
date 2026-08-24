@@ -39,6 +39,7 @@ interface Recommendation {
   rekomendasi?: string;
   diusulkanSesuai?: number;
   diusulkanTptd?: number;
+  judulLhp?: string;
 }
 
 
@@ -133,6 +134,7 @@ export default function MonitoringRekomendasiBpk() {
               rekomendasi: r.rekomendasi || r[getCol('rekomendasi')] || r.deskripsi,
               diusulkanSesuai: r.diusulkan_sesuai ?? r[getCol('diusulkan_sesuai')],
               diusulkanTptd: r.diusulkan_tptd ?? r[getCol('diusulkan_tptd')],
+              judulLhp: r.judul_lhp || r.nama_lhp || r.lhp || '-',
             };
           });
           setRecommendations(mapped);
@@ -175,6 +177,7 @@ export default function MonitoringRekomendasiBpk() {
     if (!acc[curr.nomorLhp]) {
       acc[curr.nomorLhp] = {
         nomorLhp: curr.nomorLhp,
+        judulLhp: curr.judulLhp,
         tahunAudit: curr.tahunAudit,
         unitKerja: curr.unitKerja,
         kategori: curr.kategori,
@@ -183,9 +186,21 @@ export default function MonitoringRekomendasiBpk() {
     }
     acc[curr.nomorLhp].recommendations.push(curr);
     return acc;
-  }, {} as Record<string, { nomorLhp: string, tahunAudit: number, unitKerja: string, kategori: string, recommendations: Recommendation[] }>);
+  }, {} as Record<string, { nomorLhp: string, judulLhp?: string, tahunAudit: number, unitKerja: string, kategori: string, recommendations: Recommendation[] }>);
 
   const lhpList = Object.values(groupedLhp);
+  
+  // Sort recommendations within each LHP by nomorRekomendasi (numeric sort if possible)
+  lhpList.forEach(lhpGroup => {
+    lhpGroup.recommendations.sort((a, b) => {
+      const aMatch = String(a.nomorRekomendasi).match(/\d+/);
+      const bMatch = String(b.nomorRekomendasi).match(/\d+/);
+      const aNum = aMatch ? parseInt(aMatch[0], 10) : 9999;
+      const bNum = bMatch ? parseInt(bMatch[0], 10) : 9999;
+      if (aNum !== bNum) return aNum - bNum;
+      return String(a.nomorRekomendasi).localeCompare(String(b.nomorRekomendasi));
+    });
+  });
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -264,7 +279,7 @@ export default function MonitoringRekomendasiBpk() {
             </div>
             <div className="flex justify-between items-center text-sm font-semibold">
               <span className="text-rose-600 dark:text-rose-500">• Belum TL</span>
-              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['Belum TL'] || 0}</span>
+              <span className="text-slate-900 dark:text-white font-bold">{(kpi.statusDist['Belum TL'] || 0) + (kpi.statusDist['Belum Tindaklanjut'] || 0) + (kpi.statusDist['Belum Tindak Lanjut'] || 0)}</span>
             </div>
           </div>
         </div>
@@ -373,7 +388,10 @@ export default function MonitoringRekomendasiBpk() {
                     >
                       <td className="px-4 py-3.5">
                         <div className="font-semibold text-slate-800 dark:text-slate-200">{lhpGroup.nomorLhp}</div>
-                        <span className="text-[10px] text-slate-400 font-medium font-sans">Tahun Audit: {lhpGroup.tahunAudit}</span>
+                        {lhpGroup.judulLhp && lhpGroup.judulLhp !== '-' && (
+                          <div className="text-xs text-slate-500 font-medium mt-1 leading-snug max-w-sm">{lhpGroup.judulLhp}</div>
+                        )}
+                        <span className="text-[10px] text-slate-400 font-medium font-sans block mt-1">Tahun Audit: {lhpGroup.tahunAudit}</span>
                       </td>
                       <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">
                         {lhpGroup.unitKerja}

@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { ConnectorInterface } from '../IConnector';
-import { ColumnMetadata } from '../../lib/metadata-contract';
+import { ColumnMetadata } from '@/backend/lib/metadata-contract';
 import { QueryParams } from '../../db';
 
 export class ExcelConnector implements ConnectorInterface {

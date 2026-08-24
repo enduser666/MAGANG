@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDb } from '@/providers/DbContext';
-import { DynamicDatasetTable } from '@/components/datasets/DynamicDatasetTable';
-import { DatasetPagination } from '@/components/datasets/DatasetPagination';
-import { DatasetLoadingState, DatasetEmptyState, DatasetErrorState } from '@/components/datasets/DatasetStates';
-import { DatasetFormModal } from '@/components/datasets/DatasetFormModal';
-import { DatasetDeleteDialog } from '@/components/datasets/DatasetDeleteDialog';
+import { DynamicDatasetTable } from '@/frontend/components/datasets/DynamicDatasetTable';
+import { DatasetPagination } from '@/frontend/components/datasets/DatasetPagination';
+import { DatasetLoadingState, DatasetEmptyState, DatasetErrorState } from '@/frontend/components/datasets/DatasetStates';
+import { DatasetFormModal } from '@/frontend/components/datasets/DatasetFormModal';
+import { DatasetDeleteDialog } from '@/frontend/components/datasets/DatasetDeleteDialog';
 import { Search, Plus } from 'lucide-react';
 
 export default function DynamicDatasetPage({ params }: { params: Promise<{ workspaceId: string, datasetId: string }> }) {

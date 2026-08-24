@@ -1,4 +1,4 @@
-import { ColumnMetadata } from '../lib/metadata-contract';
+import { ColumnMetadata } from '@/backend/lib/metadata-contract';
 
 export class MetadataBuilder {
   public static build(inferredColumns: ColumnMetadata[]): ColumnMetadata[] {

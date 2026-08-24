@@ -1,5 +1,5 @@
 import mysql from 'mysql2/promise';
-import { DbInterface, TableMetadata, ColumnDefinition } from '../index';
+import type { DbInterface, TableMetadata, ColumnDefinition } from '../index';
 
 export class MySQLAdapter implements DbInterface {
   private pool: mysql.Pool;

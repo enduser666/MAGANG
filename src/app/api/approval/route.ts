@@ -1,11 +1,11 @@
-import { ApiResponse } from '@/lib/api-response';
+import { ApiResponse } from '@/backend/lib/api-response';
 import { getDbClient } from '@/db';
 import { ApprovalRepository } from '@/repositories/ApprovalRepository';
-import { WorkflowEngine, WORKFLOW_STATES } from '@/services/WorkflowEngine';
-import { EventBus, BUSINESS_EVENTS } from '@/services/EventBus';
-import { UserService } from '@/services/UserService';
-import { bootstrapDbListeners } from '@/lib/bootstrap';
-import { withAuth } from '@/lib/auth';
+import { WorkflowEngine, WORKFLOW_STATES } from '@/backend/services/WorkflowEngine';
+import { EventBus, BUSINESS_EVENTS } from '@/backend/services/EventBus';
+import { UserService } from '@/backend/services/UserService';
+import { bootstrapDbListeners } from '@/backend/lib/bootstrap';
+import { withAuth } from '@/backend/lib/auth';
 
 export const GET = withAuth(async (request, user) => {
   try {
