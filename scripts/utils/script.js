@@ -1,0 +1,1 @@
+const mysql = require('mysql2/promise'); mysql.createConnection({host:'localhost', user:'root', database:'sidata_test', port: 3306}).then(c => c.query('SELECT * FROM rekap_rekomendasi_minimize__2_ LIMIT 1').then(([r]) => console.log(JSON.stringify(r[0], null, 2))).catch(e => console.log(e))).catch(e => console.log(e))

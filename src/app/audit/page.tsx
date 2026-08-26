@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useDb } from '@/context/DbContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDb } from '@/providers/DbContext';
 import {
   History,
   Search,
@@ -96,24 +96,63 @@ export default function UnifiedAuditLogs() {
   const [selectedChangeTable, setSelectedChangeTable] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
       const res = await fetch('/api/history', { headers: getHeaders() });
       const data = await res.json();
       if (data.success) {
-        setLogs(data.logs || []);
+        const rawLogs = data.logs || [];
+        setLogs(rawLogs);
+
+        // Process data changes log dynamically from log history snapshots
+        const processedChanges: any[] = [];
+        rawLogs.forEach((log: any) => {
+          if (log.action === 'Record Updated' && log.details.includes('Snapshot:')) {
+            try {
+              const snapshotIndex = log.details.indexOf('Snapshot:');
+              const jsonStr = log.details.substring(snapshotIndex + 9).trim();
+              const snapshot = JSON.parse(jsonStr);
+              
+              const { tableName, recordId, oldValue, newValue } = snapshot;
+              
+              const changedKeys = Object.keys(newValue).filter(k => 
+                k !== 'id' && JSON.stringify(oldValue[k]) !== JSON.stringify(newValue[k])
+              );
+              
+              changedKeys.forEach((key, idx) => {
+                processedChanges.push({
+                  id: `CHG-${log.id}-${idx}`,
+                  tabel: tableName,
+                  barisId: recordId,
+                  field: key,
+                  oldValue: String(oldValue[key] ?? ''),
+                  newValue: String(newValue[key] ?? ''),
+                  user: log.user || 'Data Analyst',
+                  timestamp: new Date(log.timestamp).toISOString().slice(0, 19).replace('T', ' '),
+                  restored: false,
+                  fullOldRecord: oldValue,
+                  logId: log.id
+                });
+              });
+            } catch (err) {
+              console.error('Failed to parse changes log snapshot JSON:', err);
+            }
+          }
+        });
+        
+        setChanges(processedChanges.length > 0 ? processedChanges : INITIAL_CHANGES);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLogsLoading(false);
     }
-  };
+  }, [getHeaders]);
 
   useEffect(() => {
     fetchLogs();
-  }, [dbType, connectionStatus]);
+  }, [fetchLogs, dbType, connectionStatus]);
 
   const handleExportCsv = () => {
     if (logs.length === 0) return;
@@ -171,28 +210,33 @@ export default function UnifiedAuditLogs() {
   };
 
   // Rollback action handler
-  const handleRollback = (chg: any) => {
+  const handleRollback = async (chg: any) => {
     if (!confirm(`Apakah Anda yakin ingin memulihkan field "${chg.field}" pada tabel "${chg.tabel}" (Baris ID: ${chg.barisId}) kembali ke nilai "${chg.oldValue}"?`)) {
       return;
     }
 
-    setChanges(prev => prev.map(c => c.id === chg.id ? { ...c, restored: true } : c));
-
-    const newChgId = `CHG-${String(changes.length + 1).padStart(3, '0')}`;
-    const rollbackRecord = {
-      id: newChgId,
-      tabel: chg.tabel,
-      barisId: chg.barisId,
-      field: chg.field,
-      oldValue: chg.newValue,
-      newValue: chg.oldValue,
-      user: 'admin (Rollback)',
-      timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      restored: false
-    };
-
-    setChanges(prev => [rollbackRecord, ...prev]);
-    showToast(`Nilai baris data berhasil dikembalikan ke: ${chg.oldValue}!`, 'success');
+    try {
+      const headers = getHeaders();
+      const valToRestore = chg.field === 'dampak_finansial' || chg.field === 'id' || chg.field === 'progress' 
+        ? Number(chg.oldValue) 
+        : chg.oldValue;
+        
+      const res = await fetch(`/api/tables/${chg.tabel}/${chg.barisId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ [chg.field]: valToRestore })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setChanges(prev => prev.map(c => c.id === chg.id ? { ...c, restored: true } : c));
+        showToast(`Nilai baris data berhasil dikembalikan ke: ${chg.oldValue}!`, 'success');
+        fetchLogs();
+      } else {
+        alert('Gagal rollback database: ' + resData.message);
+      }
+    } catch (e: any) {
+      alert('Rollback error: ' + e.message);
+    }
   };
 
   const formatVal = (val: string) => {

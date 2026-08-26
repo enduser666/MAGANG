@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileCheck,
   Search,
@@ -30,203 +30,189 @@ interface Recommendation {
   deskripsi: string;
   pic: string;
   due_date: string;
-  status: 'Selesai' | 'Dalam Proses' | 'Terlambat' | 'Belum Dimulai';
+  status: string;
   progress: number;
   updatedAt: string;
+  jenisPemeriksaan?: string;
+  nomorTemuan?: string;
+  temuan?: string;
+  rekomendasi?: string;
+  diusulkanSesuai?: number;
+  diusulkanTptd?: number;
+  judulLhp?: string;
 }
 
-const INITIAL_RECOMMENDATIONS: Recommendation[] = [
-  {
-    id: 'REC-001',
-    nomorRekomendasi: 'REC-2026-DJP-001',
-    nomorLhp: 'LHP-2026-012-DJP',
-    tahunAudit: 2026,
-    unitKerja: 'DJP',
-    kategori: 'Kepatuhan Pajak',
-    deskripsi: 'Penyempurnaan sistem pencocokan otomatis data transaksi PPN dalam Core Tax Administration System.',
-    pic: 'Rudi Hartono (Pemeriksa Pajak Utama)',
-    due_date: '2026-12-15',
-    status: 'Dalam Proses',
-    progress: 60,
-    updatedAt: '2026-06-28'
-  },
-  {
-    id: 'REC-002',
-    nomorRekomendasi: 'REC-2026-DJBC-002',
-    nomorLhp: 'LHP-2026-045-DJBC',
-    tahunAudit: 2026,
-    unitKerja: 'DJBC',
-    kategori: 'Pabean & Cukai',
-    deskripsi: 'Audit kepatuhan fisik container impor jalur merah pada pelabuhan Tanjung Priok untuk meminimalisir under-declaration.',
-    pic: 'Dwi Kartika (Kasubdit Penindakan)',
-    due_date: '2026-08-30',
-    status: 'Dalam Proses',
-    progress: 40,
-    updatedAt: '2026-06-20'
-  },
-  {
-    id: 'REC-003',
-    nomorRekomendasi: 'REC-2025-DJKN-003',
-    nomorLhp: 'LHP-2025-098-DJKN',
-    tahunAudit: 2025,
-    unitKerja: 'DJKN',
-    kategori: 'Aset Negara',
-    deskripsi: 'Inventarisasi ulang aset BMN (Barang Milik Negara) berupa tanah di Kalimantan Timur yang belum bersertifikat.',
-    pic: 'Slamet Riyadi (Analyst Aset Negara)',
-    due_date: '2026-06-01',
-    status: 'Terlambat',
-    progress: 85,
-    updatedAt: '2026-06-05'
-  },
-  {
-    id: 'REC-004',
-    nomorRekomendasi: 'REC-2025-DJPb-004',
-    nomorLhp: 'LHP-2025-110-DJPb',
-    tahunAudit: 2025,
-    unitKerja: 'DJPb',
-    kategori: 'Anggaran Negara',
-    deskripsi: 'Penyusunan petunjuk teknis penyaluran dana transfer daerah (TKDD) tahun anggaran berikutnya guna menghindari idle cash.',
-    pic: 'Sri Handayani (Direktur Pelaksanaan Anggaran)',
-    due_date: '2026-02-28',
-    status: 'Selesai',
-    progress: 100,
-    updatedAt: '2026-02-25'
-  },
-  {
-    id: 'REC-006',
-    nomorRekomendasi: 'REC-2026-Setjen-005',
-    nomorLhp: 'LHP-2026-002-SETJEN',
-    tahunAudit: 2026,
-    unitKerja: 'Setjen',
-    kategori: 'Tata Kelola Internal',
-    deskripsi: 'Penerapan modul manajemen risiko IT terintegrasi pada seluruh aplikasi Kemenkeu RI.',
-    pic: 'Dian Sastro (Kasubag IT Governance)',
-    due_date: '2026-11-20',
-    status: 'Belum Dimulai',
-    progress: 0,
-    updatedAt: '2026-06-15'
-  },
-  {
-    id: 'REC-007',
-    nomorRekomendasi: 'REC-2025-Itjen-006',
-    nomorLhp: 'LHP-2025-055-ITJEN',
-    tahunAudit: 2025,
-    unitKerja: 'Itjen',
-    kategori: 'Audit Internal',
-    deskripsi: 'Penyusunan kurikulum sertifikasi bagi APIP (Aparat Pengawasan Intern Pemerintah) tingkat madya.',
-    pic: 'Anton Wibowo (Auditor Madya)',
-    due_date: '2025-12-31',
-    status: 'Selesai',
-    progress: 100,
-    updatedAt: '2025-12-28'
-  }
-];
 
 export default function MonitoringRekomendasiBpk() {
-  const [recommendations, setRecommendations] = useState<Recommendation[]>(INITIAL_RECOMMENDATIONS);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [kpi, setKpi] = useState({ total: 0, statusDist: {} as Record<string, number> });
+  const [isLoading, setIsLoading] = useState(true);
   
   // Filtering & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedJenis, setSelectedJenis] = useState('');
 
-  // Modals state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [currentRec, setCurrentRec] = useState<Partial<Recommendation>>({});
-  const [formLoading, setFormLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Filter lists options
-  const units = ['DJP', 'DJBC', 'DJKN', 'DJPb', 'Itjen', 'Setjen', 'BPPK'];
-  const years = [2026, 2025, 2024];
+  const [userSession, setUserSession] = useState<any>(null);
+  const [dbUnits, setDbUnits] = useState<any[]>([]);
+
+  // 1. Init Auth and Units
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const [authRes, unitsRes] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/units')
+        ]);
+        const authData = await authRes.json();
+        const unitsData = await unitsRes.json();
+
+        if (unitsData.success) {
+          setDbUnits(unitsData.data);
+        }
+
+        if (authData.success) {
+          setUserSession(authData.data);
+          if (authData.data.accessScope === 'OWN_UNIT' && authData.data.unitId) {
+            setSelectedUnit(String(authData.data.unitId));
+          } else {
+            setSelectedUnit('all');
+          }
+        } else {
+          setSelectedUnit('all');
+        }
+      } catch (e) {
+        console.error('Failed to init auth', e);
+        setSelectedUnit('all');
+      }
+    };
+    initAuth();
+  }, []);
+
+  // 2. Fetch Data
+  useEffect(() => {
+    if (!selectedUnit) return; // Wait for auth initialization
+
+    const fetchAll = async () => {
+      setIsLoading(true);
+      try {
+        const unitParam = selectedUnit !== 'all' ? `&unit_id=${selectedUnit}` : '';
+        const [tblRes, anlRes] = await Promise.all([
+          fetch(`/api/tables/rekomendasi?limit=1000${unitParam}`),
+          fetch(`/api/dashboard/analytics?tableName=rekomendasi${unitParam}`)
+        ]);
+
+        const tbl = await tblRes.json();
+        const anl = await anlRes.json();
+
+        if (tbl.success) {
+          const mapping = tbl.meta?.metadata?.columnMapping || tbl.metadata?.columnMapping || {};
+          const getCol = (key: string) => mapping[key]?.column || '';
+          
+          const rawRows = Array.isArray(tbl.data) ? tbl.data : (tbl.data?.rows || tbl.meta?.rows || []);
+          const mapped = rawRows.map((r: any, i: number) => {
+            const stat = r[getCol('status')] || r.status_rekomendasi || r.status || 'Belum Dimulai';
+            return {
+              id: r.id || `REC-${i}`,
+              nomorRekomendasi: r[getCol('recommendation')] || r.kode_rek || r.no__rek || r.nomor_rekomendasi || `REC-${i}`,
+              nomorLhp: r[getCol('lhp')] || r.no__lhp || r.kode_lhp || r.nomor_lhp || '-',
+              tahunAudit: r.tahun_audit || r[getCol('period')] || (r.lhp ? new Date(r.lhp).getFullYear() : null) || (r.periode_pembahasan_terakhir ? new Date(r.periode_pembahasan_terakhir).getFullYear() : new Date().getFullYear()),
+              unitKerja: r[getCol('unit')] || r.uic_pusat || r.uic_k_l || r.unit_kerja || 'Unknown',
+              kategori: r[getCol('finding_type')] || r.jenis_pemeriksaan || 'Unknown',
+              deskripsi: r.rekomendasi || r.deskripsi || r.judul_rekomendasi || r[getCol('recommendation')] || '-',
+              pic: r.uic_ue_ii || r.pic || r.pic_rekomendasi || 'Belum Ditentukan',
+              due_date: r.due_date || r.target_selesai || r.periode_pembahasan_terakhir || '-',
+              status: stat,
+              progress: r.progress || (stat === 'Selesai' || stat === 'Sesuai' ? 100 : 0),
+              jenisPemeriksaan: r.jenis_pemeriksaan || r[getCol('jenis_pemeriksaan')] || r[getCol('jenis')],
+              nomorTemuan: r[getCol('finding')] || r.no__temuan || r.kode_temuan || r.nomor_temuan || r.no_temuan || '-',
+              temuan: r.temuan || r[getCol('temuan')] || r.judul_temuan,
+              rekomendasi: r.rekomendasi || r[getCol('rekomendasi')] || r.deskripsi,
+              diusulkanSesuai: r.diusulkan_sesuai ?? r[getCol('diusulkan_sesuai')],
+              diusulkanTptd: r.diusulkan_tptd ?? r[getCol('diusulkan_tptd')],
+              judulLhp: r.judul_lhp || r.nama_lhp || r.lhp || '-',
+            };
+          });
+          setRecommendations(mapped);
+        }
+
+        if (anl.success && anl.data) {
+          const d = anl.data;
+          setKpi({
+            total: d.totalRekomendasi || 0,
+            statusDist: d.statusDistribution || {}
+          });
+        }
+
+      } catch (e) {
+        console.error('Failed to fetch Rekomendasi data:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAll();
+  }, [selectedUnit]);
 
   // Filtering implementation
   const filteredRecs = recommendations.filter(item => {
     const matchesSearch = 
-      item.nomorRekomendasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.nomorLhp.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.deskripsi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.pic.toLowerCase().includes(searchTerm.toLowerCase());
+      String(item.nomorRekomendasi).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(item.nomorLhp).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(item.deskripsi).toLowerCase().includes(searchTerm.toLowerCase());
       
-    const matchesUnit = selectedUnit ? item.unitKerja === selectedUnit : true;
+    const matchesUnit = true; // Handled by backend filter
     const matchesYear = selectedYear ? item.tahunAudit === Number(selectedYear) : true;
     const matchesStatus = selectedStatus ? item.status === selectedStatus : true;
+    const matchesJenis = selectedJenis ? item.jenisPemeriksaan === selectedJenis : true;
     
-    return matchesSearch && matchesUnit && matchesYear && matchesStatus;
+    return matchesSearch && matchesUnit && matchesYear && matchesStatus && matchesJenis;
   });
 
-  // Calculate dynamic KPIs
-  const totalCount = filteredRecs.length;
-  const completedCount = filteredRecs.filter(r => r.status === 'Selesai').length;
-  const inProgressCount = filteredRecs.filter(r => r.status === 'Dalam Proses').length;
-  const overdueCount = filteredRecs.filter(r => r.status === 'Terlambat').length;
-  const notStartedCount = filteredRecs.filter(r => r.status === 'Belum Dimulai').length;
+  // Group by LHP for rendering
+  const groupedLhp = filteredRecs.reduce((acc, curr) => {
+    if (!acc[curr.nomorLhp]) {
+      acc[curr.nomorLhp] = {
+        nomorLhp: curr.nomorLhp,
+        judulLhp: curr.judulLhp,
+        tahunAudit: curr.tahunAudit,
+        unitKerja: curr.unitKerja,
+        kategori: curr.kategori,
+        recommendations: []
+      };
+    }
+    acc[curr.nomorLhp].recommendations.push(curr);
+    return acc;
+  }, {} as Record<string, { nomorLhp: string, judulLhp?: string, tahunAudit: number, unitKerja: string, kategori: string, recommendations: Recommendation[] }>);
 
-  const handleOpenCreateModal = () => {
-    setIsEditMode(false);
-    setCurrentRec({
-      nomorRekomendasi: `REC-${new Date().getFullYear()}-DJP-00${recommendations.length + 1}`,
-      nomorLhp: 'LHP-2026-000-DJP',
-      tahunAudit: new Date().getFullYear(),
-      unitKerja: 'DJP',
-      kategori: 'Kepatuhan Pajak',
-      deskripsi: '',
-      pic: '',
-      due_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days default
-      status: 'Belum Dimulai',
-      progress: 0,
-      updatedAt: new Date().toISOString().split('T')[0]
+  const lhpList = Object.values(groupedLhp);
+  
+  // Sort recommendations within each LHP by nomorRekomendasi (numeric sort if possible)
+  lhpList.forEach(lhpGroup => {
+    lhpGroup.recommendations.sort((a, b) => {
+      const aMatch = String(a.nomorRekomendasi).match(/\d+/);
+      const bMatch = String(b.nomorRekomendasi).match(/\d+/);
+      const aNum = aMatch ? parseInt(aMatch[0], 10) : 9999;
+      const bNum = bMatch ? parseInt(bMatch[0], 10) : 9999;
+      if (aNum !== bNum) return aNum - bNum;
+      return String(a.nomorRekomendasi).localeCompare(String(b.nomorRekomendasi));
     });
-    setIsModalOpen(true);
+  });
+
+  const toggleRow = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
   };
 
-  const handleOpenEditModal = (rec: Recommendation) => {
-    setIsEditMode(true);
-    setCurrentRec({ ...rec });
-    setIsModalOpen(true);
-  };
 
-  const handleDelete = (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus rekomendasi BPK ini?')) return;
-    setRecommendations(recommendations.filter(r => r.id !== id));
-  };
-
-  const handleSaveForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormLoading(true);
-
-    setTimeout(() => {
-      let progressVal = Number(currentRec.progress || 0);
-      let statusVal = currentRec.status || 'Belum Dimulai';
-
-      if (progressVal >= 100) {
-        progressVal = 100;
-        statusVal = 'Selesai';
-      } else if (progressVal > 0 && statusVal === 'Belum Dimulai') {
-        statusVal = 'Dalam Proses';
-      } else if (progressVal === 0) {
-        statusVal = 'Belum Dimulai';
-      }
-
-      const validatedRec = {
-        ...currentRec,
-        progress: progressVal,
-        status: statusVal,
-        updatedAt: new Date().toISOString().split('T')[0]
-      } as Recommendation;
-
-      if (isEditMode) {
-        setRecommendations(recommendations.map(r => r.id === currentRec.id ? validatedRec : r));
-      } else {
-        const newId = `REC-${String(recommendations.length + 1).padStart(3, '0')}`;
-        setRecommendations([...recommendations, { ...validatedRec, id: newId }]);
-      }
-      
-      setFormLoading(false);
-      setIsModalOpen(false);
-    }, 500);
-  };
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-200">
@@ -241,65 +227,61 @@ export default function MonitoringRekomendasiBpk() {
             Kelola dan petakan rekomendasi hasil audit Badan Pemeriksa Keuangan (BPK) sebelum didistribusikan untuk tindak lanjut.
           </p>
         </div>
-
-        <button
-          onClick={handleOpenCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1D4ED8] hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold transition-all cursor-pointer shadow-sm md:self-center"
-        >
-          <Plus className="h-4 w-4" /> Tambah Rekomendasi
-        </button>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Recommendations */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Total Rekomendasi</span>
-            <FileText className="h-4.5 w-4.5 text-blue-500" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card 1: Total Rekomendasi */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <FileText className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-extrabold uppercase tracking-wider">Total Rekomendasi</span>
           </div>
-          <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{totalCount}</p>
-          <span className="text-[9px] text-slate-400 font-bold block mt-1">Temuan Audit Terdaftar</span>
+          <p className="text-4xl font-black text-slate-900 dark:text-white mt-2">{kpi.total}</p>
         </div>
 
-        {/* Completed */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Selesai</span>
-            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" />
+        {/* Card 2: Rekomendasi Tuntas */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="text-sm font-extrabold uppercase tracking-wider">Rekomendasi Tuntas</span>
           </div>
-          <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{completedCount}</p>
-          <span className="text-[9px] text-emerald-600 font-bold block mt-1">Tuntas Ditindaklanjuti</span>
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-emerald-600 dark:text-emerald-500">• Sesuai</span>
+              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['Sesuai'] || 0}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-teal-600 dark:text-teal-500">• Diusulkan Sesuai</span>
+              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['Diusulkan Sesuai'] || 0}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-amber-600 dark:text-amber-500">• TPTD</span>
+              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['TPTD'] || 0}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-orange-500 dark:text-orange-400">• Diusulkan TPTD</span>
+              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['Diusulkan TPTD'] || 0}</span>
+            </div>
+          </div>
         </div>
 
-        {/* In Progress */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Dalam Proses</span>
-            <Clock className="h-4.5 w-4.5 text-blue-500 animate-pulse" />
+        {/* Card 3: Rekomendasi Dalam Proses */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <Clock className="h-5 w-5" />
+            <span className="text-sm font-extrabold uppercase tracking-wider">Rekomendasi Dalam Proses</span>
           </div>
-          <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{inProgressCount}</p>
-          <span className="text-[9px] text-blue-600 font-bold block mt-1">Tahap Pemenuhan TLHP</span>
-        </div>
-
-        {/* Overdue */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Terlambat</span>
-            <AlertTriangle className="h-4.5 w-4.5 text-rose-500" />
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-blue-600 dark:text-blue-500">• Dalam Proses</span>
+              <span className="text-slate-900 dark:text-white font-bold">{kpi.statusDist['Dalam Proses'] || 0}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-rose-600 dark:text-rose-500">• Belum TL</span>
+              <span className="text-slate-900 dark:text-white font-bold">{(kpi.statusDist['Belum TL'] || 0) + (kpi.statusDist['Belum Tindaklanjut'] || 0) + (kpi.statusDist['Belum Tindak Lanjut'] || 0)}</span>
+            </div>
           </div>
-          <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{overdueCount}</p>
-          <span className="text-[9px] text-rose-600 font-bold block mt-1">Melebihi Batas Waktu</span>
-        </div>
-
-        {/* Not Started */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-4 shadow-xs col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Belum Dimulai</span>
-            <Clock className="h-4.5 w-4.5 text-slate-400" />
-          </div>
-          <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{notStartedCount}</p>
-          <span className="text-[9px] text-slate-400 font-bold block mt-1">Belum Teralokasi</span>
         </div>
       </div>
 
@@ -312,7 +294,7 @@ export default function MonitoringRekomendasiBpk() {
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs w-full lg:w-auto font-semibold">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 text-xs w-full lg:w-auto font-semibold">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
@@ -329,11 +311,14 @@ export default function MonitoringRekomendasiBpk() {
           <select
             value={selectedUnit}
             onChange={(e) => setSelectedUnit(e.target.value)}
-            className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
+            disabled={userSession?.accessScope === 'OWN_UNIT'}
+            className={`px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] ${userSession?.accessScope === 'OWN_UNIT' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
           >
-            <option value="">Semua Eselon I</option>
-            {units.map(u => (
-              <option key={u} value={u}>{u}</option>
+            {userSession?.accessScope !== 'OWN_UNIT' && <option value="all">Semua Eselon I</option>}
+            {dbUnits.map(u => (
+              <option key={u.id} value={u.id}>
+                {userSession?.accessScope === 'OWN_UNIT' && String(u.id) !== selectedUnit ? `🔒 ${u.kode_unit}` : (userSession?.accessScope === 'OWN_UNIT' && String(u.id) === selectedUnit ? `🔒 ${u.kode_unit}` : u.kode_unit)}
+              </option>
             ))}
           </select>
 
@@ -344,8 +329,20 @@ export default function MonitoringRekomendasiBpk() {
             className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
           >
             <option value="">Semua Tahun Audit</option>
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
+            {Array.from(new Set(recommendations.map(r => r.tahunAudit).filter(Boolean))).sort().reverse().map(y => (
+              <option key={String(y)} value={String(y)}>{String(y)}</option>
+            ))}
+          </select>
+
+          {/* Jenis Pemeriksaan selector */}
+          <select
+            value={selectedJenis}
+            onChange={(e) => setSelectedJenis(e.target.value)}
+            className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
+          >
+            <option value="">Semua Jenis Pemeriksaan</option>
+            {Array.from(new Set(recommendations.map(r => r.jenisPemeriksaan).filter(Boolean))).map(j => (
+              <option key={String(j)} value={String(j)}>{String(j)}</option>
             ))}
           </select>
 
@@ -356,10 +353,9 @@ export default function MonitoringRekomendasiBpk() {
             className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
           >
             <option value="">Semua Status</option>
-            <option value="Belum Dimulai">Belum Dimulai</option>
-            <option value="Dalam Proses">Dalam Proses</option>
-            <option value="Terlambat">Terlambat</option>
-            <option value="Selesai">Selesai</option>
+            {Array.from(new Set(recommendations.map(r => r.status).filter(Boolean))).map(s => (
+              <option key={String(s)} value={String(s)}>{String(s)}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -370,95 +366,99 @@ export default function MonitoringRekomendasiBpk() {
           <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-xs text-slate-700 dark:text-slate-350">
             <thead className="bg-slate-50 dark:bg-slate-900 font-extrabold text-slate-500 dark:text-slate-400">
               <tr>
-                <th className="px-4 py-3.5 text-left w-36">No. Rekomendasi</th>
-                <th className="px-4 py-3.5 text-left w-32">No. LHP (Tahun)</th>
-                <th className="px-4 py-3.5 text-left w-20">Unit Kerja</th>
-                <th className="px-4 py-3.5 text-left">Deskripsi Rekomendasi</th>
-                <th className="px-4 py-3.5 text-left w-36">PIC</th>
-                <th className="px-4 py-3.5 text-center w-24">Status</th>
-                <th className="px-4 py-3.5 text-center w-24">Progress</th>
-                <th className="px-4 py-3.5 text-center w-24">Aksi</th>
+                <th className="px-4 py-3.5 text-left w-1/3">No. LHP</th>
+                <th className="px-4 py-3.5 text-left w-1/4">Unit Kerja</th>
+                <th className="px-4 py-3.5 text-left w-1/4">Jenis Pemeriksaan</th>
+                <th className="px-4 py-3.5 text-left w-1/4">Jumlah Rekomendasi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredRecs.length === 0 ? (
+              {lhpList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-450 italic">
-                    Tidak ditemukan rekomendasi BPK yang cocok dengan filter pencarian.
+                  <td colSpan={4} className="px-4 py-10 text-center text-slate-450 italic">
+                    Tidak ditemukan LHP yang cocok dengan filter pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredRecs.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 align-top">
-                    <td className="px-4 py-3.5 font-mono font-bold text-slate-900 dark:text-white">
-                      {item.nomorRekomendasi}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{item.nomorLhp}</div>
-                      <span className="text-[10px] text-slate-400 font-medium font-sans">Tahun Audit: {item.tahunAudit}</span>
-                    </td>
-                    <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">
-                      {item.unitKerja}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-semibold text-slate-500 dark:text-slate-400 text-[10px] uppercase block mb-1">
-                        {item.kategori}
-                      </span>
-                      <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium line-clamp-3" title={item.deskripsi}>
-                        {item.deskripsi}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-600 dark:text-slate-400 font-semibold">
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-[#1D4ED8] shrink-0" />
-                        <span className="truncate max-w-[120px]">{item.pic}</span>
-                      </div>
-                      <span className="text-[9.5px] text-slate-400 block mt-1">Due: {item.due_date}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${
-                        item.status === 'Selesai'
-                          ? 'bg-emerald-100 text-emerald-850 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-500/10'
-                          : item.status === 'Dalam Proses'
-                          ? 'bg-blue-100 text-blue-850 dark:bg-blue-950/20 dark:text-blue-400 border-blue-500/10'
-                          : item.status === 'Terlambat'
-                          ? 'bg-red-100 text-red-850 dark:bg-red-950/20 dark:text-red-400 border-red-500/10 animate-pulse'
-                          : 'bg-slate-100 text-slate-650 dark:bg-slate-800/40 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-16 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden shrink-0">
-                          <div className={`h-full rounded-full ${
-                            item.status === 'Selesai' ? 'bg-emerald-500' :
-                            item.status === 'Terlambat' ? 'bg-rose-500' : 'bg-blue-500'
-                          }`} style={{ width: `${item.progress}%` }} />
-                        </div>
-                        <span className="font-bold shrink-0 text-[10px]">{item.progress}%</span>
-                      </div>
-                      <span className="text-[9px] text-slate-400 block mt-1">Updated: {item.updatedAt}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditModal(item)}
-                          className="p-1 rounded text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
-                          title="Ubah Rekomendasi"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1 rounded text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                          title="Hapus Rekomendasi"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                lhpList.map((lhpGroup, index) => (
+                  <React.Fragment key={`${lhpGroup.nomorLhp}-${index}`}>
+                    <tr 
+                      onClick={() => toggleRow(lhpGroup.nomorLhp)}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 align-middle cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{lhpGroup.nomorLhp}</div>
+                        {lhpGroup.judulLhp && lhpGroup.judulLhp !== '-' && (
+                          <div className="text-xs text-slate-500 font-medium mt-1 leading-snug max-w-sm">{lhpGroup.judulLhp}</div>
+                        )}
+                        <span className="text-[10px] text-slate-400 font-medium font-sans block mt-1">Tahun Audit: {lhpGroup.tahunAudit}</span>
+                      </td>
+                      <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">
+                        {lhpGroup.unitKerja}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          {lhpGroup.kategori}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-900/20 dark:text-blue-400">
+                          {lhpGroup.recommendations.length} Rekomendasi
+                        </span>
+                      </td>
+                    </tr>
+                    {expandedRows.has(lhpGroup.nomorLhp) && (
+                      <tr className="bg-slate-50/50 dark:bg-slate-900/50">
+                        <td colSpan={4} className="p-4 border-b border-slate-100 dark:border-slate-800">
+                          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs text-slate-700 dark:text-slate-300">
+                                <thead className="bg-[#2a4e8a] text-white">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left border-r border-white/20 font-semibold">No. Temuan</th>
+                                    <th className="px-3 py-2 text-left border-r border-white/20 font-semibold w-1/4">Temuan</th>
+                                    <th className="px-3 py-2 text-left border-r border-white/20 font-semibold">No. Rek</th>
+                                    <th className="px-3 py-2 text-left border-r border-white/20 font-semibold w-1/3">Rekomendasi</th>
+                                    <th className="px-3 py-2 text-left border-r border-white/20 font-semibold">Status Rekomendasi</th>
+                                    <th className="px-3 py-2 text-center font-semibold">Keterangan</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                                  {lhpGroup.recommendations.map((rec) => {
+                                    const isPending = rec.status === 'Dalam Proses' || rec.status === 'Belum TL' || rec.status === 'Belum Tindaklanjut' || rec.status?.toLowerCase().includes('belum');
+                                    return (
+                                      <tr key={rec.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 align-top">
+                                        <td className="px-3 py-2 font-mono font-semibold border-r border-slate-200 dark:border-slate-700">{rec.nomorTemuan || '-'}</td>
+                                        <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-700">{rec.temuan || '-'}</td>
+                                        <td className="px-3 py-2 font-mono font-semibold border-r border-slate-200 dark:border-slate-700">{rec.nomorRekomendasi || '-'}</td>
+                                        <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-700">{rec.rekomendasi || rec.deskripsi || '-'}</td>
+                                        <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-700">
+                                          {rec.status}
+                                        </td>
+                                        <td className="px-3 py-2 text-center align-middle">
+                                          {isPending ? (
+                                            <a
+                                              href={`/import?id=${rec.id}`}
+                                              className="inline-flex items-center justify-center text-[11px] font-bold text-red-600 hover:text-red-800 hover:underline decoration-red-600"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              Input TL
+                                            </a>
+                                          ) : (
+                                            <span className="text-red-600 font-bold">-</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -466,168 +466,7 @@ export default function MonitoringRekomendasiBpk() {
         </div>
       </div>
 
-      {/* Add / Edit Recommendation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsModalOpen(false)} />
-          
-          <div className="relative w-full max-w-xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-900">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <FileCheck className="h-4.5 w-4.5 text-[#1D4ED8]" />
-                {isEditMode ? `Ubah Rekomendasi (ID: ${currentRec.id})` : 'Tambah Rekomendasi BPK Baru'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            {/* Form */}
-            <form onSubmit={handleSaveForm} className="overflow-y-auto flex-1 p-6 space-y-4 text-xs font-semibold">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Recommendation Number */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Nomor Rekomendasi BPK *</label>
-                  <input
-                    type="text"
-                    required
-                    value={currentRec.nomorRekomendasi || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, nomorRekomendasi: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-
-                {/* Audit Report Number */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Nomor LHP (Audit Report) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={currentRec.nomorLhp || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, nomorLhp: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-
-                {/* Audit Year */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Tahun Audit (LHP) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={currentRec.tahunAudit || 2026}
-                    onChange={(e) => setCurrentRec({ ...currentRec, tahunAudit: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-
-                {/* Unit Kerja */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Unit Kerja Pelaksana *</label>
-                  <select
-                    value={currentRec.unitKerja || 'DJP'}
-                    onChange={(e) => setCurrentRec({ ...currentRec, unitKerja: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  >
-                    {units.map(u => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Kategori Rekomendasi *</label>
-                  <input
-                    type="text"
-                    required
-                    value={currentRec.kategori || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, kategori: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                    placeholder="Contoh: Kepatuhan Pajak"
-                  />
-                </div>
-
-                {/* Responsible Officer (PIC) */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Penanggung Jawab (PIC) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={currentRec.pic || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, pic: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                    placeholder="Nama Pegawai & Jabatan"
-                  />
-                </div>
-
-                {/* Due date */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Tenggat Waktu (Due Date) *</label>
-                  <input
-                    type="date"
-                    required
-                    value={currentRec.due_date || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, due_date: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-
-                {/* Completion Progress Percentage */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 dark:text-slate-400">Persentase Penyelesaian (%) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    required
-                    value={currentRec.progress || 0}
-                    onChange={(e) => setCurrentRec({ ...currentRec, progress: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-slate-550 dark:text-slate-400">Deskripsi Rekomendasi BPK *</label>
-                  <textarea
-                    rows={4}
-                    required
-                    value={currentRec.deskripsi || ''}
-                    onChange={(e) => setCurrentRec({ ...currentRec, deskripsi: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
-                    placeholder="Tuliskan tindakan korektif yang direkomendasikan BPK..."
-                  />
-                </div>
-              </div>
-
-              {/* Form submit actions */}
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={formLoading}
-                  className="px-5 py-2 bg-[#1D4ED8] hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {formLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Simpan Rekomendasi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

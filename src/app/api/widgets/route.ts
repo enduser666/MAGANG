@@ -1,23 +1,21 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { getDbClient } from '@/db';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
     const db = getDbClient(dbType, dbConfig);
 
     const widgets = await db.dashboardWidgets.findMany();
-    return NextResponse.json({ success: true, data: widgets });
+    return ApiResponse.success(widgets, 'Widgets listed successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to list widgets.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to list widgets.', error, 500);
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
@@ -26,11 +24,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const widget = await db.dashboardWidgets.create(body);
 
-    return NextResponse.json({ success: true, data: widget });
+    return ApiResponse.success(widget, 'Widget created successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create widget.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to create widget.', error, 500);
   }
-}
+});

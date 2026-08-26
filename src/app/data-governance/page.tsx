@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useDb } from '@/context/DbContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDb } from '@/providers/DbContext';
 import {
   ShieldCheck,
   GitBranch,
@@ -99,7 +99,7 @@ export default function DataGovernance() {
       }
     };
     fetchTables();
-  }, [dbType, connectionStatus]);
+  }, [dbType, connectionStatus, getHeaders]);
 
   // Calculate dynamic properties on selection change
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function DataGovernance() {
   }, [selectedTable, tablesList]);
 
   // Load Quality KPIs dynamically based on selected table
-  const fetchQualityData = async (tableName: string) => {
+  const fetchQualityData = useCallback(async (tableName: string) => {
     setSelectedTable(tableName);
     if (!tableName) return;
     setLoading(true);
@@ -227,7 +227,7 @@ export default function DataGovernance() {
         let missingCells = 0;
         let dupCount = 0;
         const seen = new Set();
-        const colDefinitions = data.metadata.columns || [];
+        const colDefinitions = data.metadata?.columns || data.meta?.metadata?.columns || [];
 
         rows.forEach((row: any) => {
           colDefinitions.forEach((c: any) => {
@@ -286,13 +286,13 @@ export default function DataGovernance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getHeaders]);
 
   useEffect(() => {
     if (selectedTable) {
       fetchQualityData(selectedTable);
     }
-  }, [selectedTable]);
+  }, [selectedTable, fetchQualityData]);
 
   const handleFixViolation = (id: string) => {
     setViolations(violations.map((v) => (v.id === id ? { ...v, status: 'RESOLVED' } : v)));

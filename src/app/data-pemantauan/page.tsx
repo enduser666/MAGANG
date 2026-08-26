@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useDb } from '@/context/DbContext';
+import { useDb } from '@/providers/DbContext';
 import {
   Search,
   ChevronLeft,
@@ -114,10 +114,13 @@ export default function DataPemantauan() {
       
       if (data.success) {
         setRecords(data.data || []);
-        setMetadata(data.metadata);
-        setColumns(data.metadata.columns || []);
-        setTotalPages(data.pagination.totalPages || 1);
-        setTotalRecords(data.pagination.total || 0);
+        const responseMeta = data.meta?.metadata || data.metadata;
+        const responsePagination = data.meta?.pagination || data.pagination;
+        
+        setMetadata(responseMeta);
+        setColumns(responseMeta?.columns || []);
+        setTotalPages(responsePagination?.totalPages || 1);
+        setTotalRecords(responsePagination?.total || 0);
       }
     } catch (e) {
       console.error('Failed to load table data:', e);

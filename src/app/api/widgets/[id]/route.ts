@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { getDbClient } from '@/db';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuth(async (request, user, { params }) => {
   try {
     const { id } = await params;
     const dbType = request.headers.get('x-db-type') || 'sandbox';
@@ -12,13 +10,17 @@ export async function DELETE(
     const db = getDbClient(dbType, dbConfig);
 
     const numericId = parseInt(id, 10);
+    if (isNaN(numericId) || numericId <= 0) {
+      return ApiResponse.error('Invalid ID parameter.', null, 400);
+    }
     const success = await db.dashboardWidgets.delete(numericId);
 
-    return NextResponse.json({ success });
+    if (!success) {
+      return ApiResponse.error('Widget not found or could not be deleted.', null, 404);
+    }
+
+    return ApiResponse.success({ success }, 'Widget deleted successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to delete widget.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to delete widget.', error, 500);
   }
-}
+});

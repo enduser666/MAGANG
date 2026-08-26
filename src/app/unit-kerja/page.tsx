@@ -77,6 +77,7 @@ const UNIT_METRICS: Record<string, {
     executiveNotes: 'Tindak lanjut atas sertifikasi aset tanah negara menunjukkan keterlambatan progres akibat kendala koordinasi eksternal BPN. Mitigasi dialokasikan melalui tim satgas lintas lembaga.',
     qualitySummary: 'Kualitas data Cukup. Masih terdapat nilai kosong (null) pada kolom keterangan riwayat klaim aset tanah seluas 400 hektar di regional Kalimantan Timur.'
   },
+
   DJPb: {
     name: 'DJPb',
     fullName: 'Direktorat Jenderal Perbendaharaan',
@@ -171,7 +172,7 @@ export default function UnitDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-200">
-      
+
       {/* Selector and Title Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-[#111827] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
@@ -210,13 +211,13 @@ export default function UnitDashboard() {
 
       {/* Grid: KPIs & Score Gauge */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
+
         {/* Unit Performance Score Gauge Card */}
         <div className="lg:col-span-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 flex flex-col items-center justify-center text-center shadow-xs">
           <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-400 mb-4 w-full text-left">
             Unit Performance Score
           </h3>
-          
+
           <div className="relative h-32 w-32 flex items-center justify-center">
             {/* Circular Gauge */}
             <svg className="w-full h-full transform -rotate-90">
@@ -247,7 +248,7 @@ export default function UnitDashboard() {
               <span className="text-[10px] text-slate-400 block font-bold mt-1">INDEKS KEPATUHAN</span>
             </div>
           </div>
-          
+
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-4">
             Status Kepatuhan: <strong className="text-[#1D4ED8]">{metrics.performanceScore >= 85 ? 'SANGAT TINGGI' : 'OPTIMAL'}</strong>
           </p>
@@ -255,7 +256,7 @@ export default function UnitDashboard() {
 
         {/* 4 Cards Scorecard List */}
         <div className="lg:col-span-3 grid grid-cols-2 gap-4">
-          
+
           {/* Jumlah Temuan */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#111827] p-5 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-450 dark:text-slate-400">
@@ -305,7 +306,7 @@ export default function UnitDashboard() {
 
       {/* Row 2: Charts: Temuan, TLHP, and Risk Trend for Unit */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Temuan Trend */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-400 mb-4 flex items-center gap-1.5">
@@ -334,8 +335,8 @@ export default function UnitDashboard() {
               <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="unitSelesai" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.25}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-800" />
@@ -370,7 +371,7 @@ export default function UnitDashboard() {
 
       {/* Row 3: Notes & Data Quality Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Executive Notes (Catatan Pengawasan Eselon I) */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
@@ -380,7 +381,7 @@ export default function UnitDashboard() {
                 Catatan Pengawasan Eksekutif (Executive Notes)
               </h3>
             </div>
-            
+
             {editNotesMode ? (
               <button
                 onClick={handleSaveNotes}

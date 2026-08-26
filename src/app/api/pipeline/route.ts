@@ -1,23 +1,21 @@
-import { NextResponse } from 'next/server';
-import { getDbClient } from '@/lib/db';
+import { getDbClient } from '@/db';
+import { ApiResponse } from '@/backend/lib/api-response';
+import { withAuth } from '@/backend/lib/auth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
     const db = getDbClient(dbType, dbConfig);
 
     const jobs = await db.pipelineJobs.findMany();
-    return NextResponse.json({ success: true, data: jobs });
+    return ApiResponse.success(jobs, 'Pipeline jobs listed successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to list pipeline jobs.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to list pipeline jobs.', error, 500);
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request, user) => {
   try {
     const dbType = request.headers.get('x-db-type') || 'sandbox';
     const dbConfig = request.headers.get('x-db-config');
@@ -30,11 +28,8 @@ export async function POST(request: Request) {
       durationMs: body.durationMs || 0
     });
 
-    return NextResponse.json({ success: true, data: job });
+    return ApiResponse.success(job, 'Pipeline job created successfully');
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create pipeline job.' },
-      { status: 500 }
-    );
+    return ApiResponse.error(error.message || 'Failed to create pipeline job.', error, 500);
   }
-}
+});
