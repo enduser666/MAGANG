@@ -58,18 +58,12 @@ export default function AIAssistantWorkspace() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // KPIs
-  const [kpis, setKpis] = useState({
-    totalRec: '5.612',
-    outstandingRec: '2.245',
-    completionRate: '92.4%'
-  });
-
-  const promptOptions = [
-    { label: 'Cari Temuan Terbanyak', query: 'Unit kerja mana yang memiliki temuan terbanyak?' },
-    { label: 'Rekomendasi Belum Selesai', query: 'Apa saja rekomendasi yang belum diselesaikan oleh Unit A?' },
-    { label: 'Ringkasan Monitoring', query: 'Tolong buatkan ringkasan monitoring bulan ini.' }
-  ];
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 128)}px`;
+    }
+  }, [inputMsg]);
 
   useEffect(() => {
     loadHistoryList();
@@ -95,9 +89,12 @@ export default function AIAssistantWorkspace() {
           timestamp: parsed[key].timestamp || 0
         })).sort((a, b) => b.timestamp - a.timestamp);
         setHistoryItems(list);
+      } else {
+        setHistoryItems([]);
       }
     } catch (e) {
       console.error(e);
+      setHistoryItems([]);
     }
   };
 
@@ -153,7 +150,10 @@ export default function AIAssistantWorkspace() {
         const parsed = JSON.parse(saved);
         delete parsed[sessionToDelete];
         localStorage.setItem('sidata_chat_history', JSON.stringify(parsed));
-        loadHistoryList();
+        
+        // Memastikan state lokal segera di-update agar tombolnya benar-benar hilang dari UI
+        setHistoryItems(prev => prev.filter(h => h.sessionId !== sessionToDelete));
+        
         if (sessionToDelete === sessionId) {
           handleNewConversation();
         }
@@ -325,7 +325,7 @@ export default function AIAssistantWorkspace() {
         </div>
 
         {/* CHAT AREA */}
-        <div className="lg:col-span-3 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col overflow-hidden">
+        <div className="lg:col-span-4 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F8FAFC]/50 dark:bg-[#0B0F19]/25">
             {chatFeed.map((msg, index) => {
               const isUser = msg.sender === 'user';
@@ -341,14 +341,14 @@ export default function AIAssistantWorkspace() {
                       <div className="markdown-body">
                         <ReactMarkdown 
                           components={{
-                            strong: ({node, ...props}) => <span className="font-extrabold text-slate-900 dark:text-white" {...props} />,
-                            ul: ({node, ...props}) => <ul className="list-disc pl-4 space-y-1 my-2" {...props} />,
-                            ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />,
-                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                            h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-3 mb-2" {...props} />,
-                            h2: ({node, ...props}) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
-                            h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-2 mb-1" {...props} />
+                            strong: ({node, ...props}: any) => <span className="font-extrabold text-slate-900 dark:text-white" {...props} />,
+                            ul: ({node, ...props}: any) => <ul className="list-disc pl-4 space-y-1 my-2" {...props} />,
+                            ol: ({node, ...props}: any) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />,
+                            li: ({node, ...props}: any) => <li className="mb-1" {...props} />,
+                            p: ({node, ...props}: any) => <p className="mb-2 last:mb-0" {...props} />,
+                            h1: ({node, ...props}: any) => <h1 className="text-lg font-bold mt-3 mb-2" {...props} />,
+                            h2: ({node, ...props}: any) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+                            h3: ({node, ...props}: any) => <h3 className="text-sm font-bold mt-2 mb-1" {...props} />
                           }}
                         >
                           {msg.text}
@@ -369,7 +369,7 @@ export default function AIAssistantWorkspace() {
             <div className="flex items-end gap-2">
               <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.xlsx,.xls,.csv,image/*,.docx,.txt" onChange={(e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]); }} />
               <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-slate-600 border dark:border-slate-800 rounded-lg cursor-pointer bg-slate-50 dark:bg-slate-900 transition-colors" title="Lampirkan File"><Paperclip className="h-4 w-4"/></button>
-              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen... (Shift+Enter untuk baris baru)" className="flex-1 max-h-32 resize-none rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" />
+              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen... (Shift+Enter untuk baris baru)" className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" style={{ resize: 'none' }} />
               {loading ? (
                 <button onClick={handleStopGeneration} className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-lg cursor-pointer shadow-md transition-colors" title="Hentikan Response"><StopCircle className="h-4.5 w-4.5"/></button>
               ) : (
@@ -380,57 +380,6 @@ export default function AIAssistantWorkspace() {
               Asisten AI SIDATA dapat membuat kesalahan. Harap periksa kembali informasi yang dihasilkan.
             </p>
           </div>
-        </div>
-
-        {/* COMBINED RIGHT SIDEBAR (KPI & TOPIK REKOMENDASI) */}
-        <div className="lg:col-span-1 rounded-xl flex flex-col gap-4 min-h-0">
-          
-          {/* Topik Rekomendasi Panel (Azriel-Branch feature) */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
-            <h3 className="text-xs font-extrabold text-slate-450 uppercase tracking-wider flex items-center gap-2 mb-3">
-              <Lightbulb className="h-4 w-4 text-[#1D4ED8]" /> Topik Rekomendasi
-            </h3>
-            
-            <div className="space-y-2">
-              {promptOptions.map((opt, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendQuery(opt.query)}
-                  className="w-full flex items-center justify-between p-2.5 text-left border border-slate-100 dark:border-slate-850 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-bold text-slate-650 dark:text-slate-300 transition-all cursor-pointer"
-                >
-                  <span className="truncate">{opt.label}</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-[#1D4ED8] shrink-0 ml-2" />
-                </button>
-              ))}
-            </div>
-
-            <div className="border-t border-slate-100 dark:border-slate-850 pt-3 mt-3 text-[10px] text-slate-400 leading-relaxed font-semibold">
-              <div className="flex gap-2">
-                <HelpCircle className="h-4.5 w-4.5 text-slate-450 shrink-0" />
-                <p>Pilih topik untuk memulai pertanyaan analitis otomatis ke sistem.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI Panel */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs flex-1 overflow-y-auto">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b dark:border-slate-800 pb-2 mb-3">Insight Panel (KPI)</span>
-            <div className="space-y-3">
-               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                 <p className="text-[9px] font-bold text-slate-500">TOTAL REKOMENDASI</p>
-                 <p className="text-base font-black">{kpis.totalRec}</p>
-               </div>
-               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                 <p className="text-[9px] font-bold text-slate-500">BELUM SELESAI</p>
-                 <p className="text-base font-black text-amber-600">{kpis.outstandingRec}</p>
-               </div>
-               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                 <p className="text-[9px] font-bold text-slate-500">PERSENTASE PENYELESAIAN</p>
-                 <p className="text-base font-black text-emerald-600">{kpis.completionRate}</p>
-               </div>
-            </div>
-          </div>
-
         </div>
 
       </div>
