@@ -55,6 +55,33 @@ export default function DataPemantauan() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formRecord, setFormRecord] = useState<any>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [userRole, setUserRole] = useState<string>('VIEWER');
+
+  useEffect(() => {
+    // Fetch user role for RBAC logic
+    fetch('/api/auth/me', { headers: getHeaders() })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && (d.data?.role || d.user?.role)) {
+          setUserRole(d.data?.role || d.user?.role);
+        }
+      })
+      .catch(console.error);
+
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchParam = urlParams.get('search');
+      if (searchParam) {
+        setSearch(searchParam);
+      }
+      
+      const filterFieldParam = urlParams.get('filter_field');
+      const filterValueParam = urlParams.get('filter_value');
+      if (filterFieldParam && filterValueParam) {
+        setActiveFilters([{ field: filterFieldParam, value: filterValueParam }]);
+      }
+    }
+  }, []);
 
   // Fetch tables registry
   const fetchTables = async () => {
@@ -67,7 +94,13 @@ export default function DataPemantauan() {
         setTablesList(data.data);
         // Auto select first table if none selected
         if (!selectedTable) {
-          setSelectedTable(data.data[0].name);
+          const urlParams = new URLSearchParams(window.location.search);
+          const tableParam = urlParams.get('table');
+          if (tableParam && data.data.find((t: any) => t.name === tableParam)) {
+            setSelectedTable(tableParam);
+          } else {
+            setSelectedTable(data.data[0].name);
+          }
         }
       } else {
         setTablesList([]);
@@ -558,13 +591,15 @@ export default function DataPemantauan() {
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteRecord(row.id)}
-                                className="p-1 rounded text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                title="Hapus baris"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {userRole === 'ADMIN_PUSAT' && (
+                                <button
+                                  onClick={() => handleDeleteRecord(row.id)}
+                                  className="p-1 rounded text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                  title="Hapus baris"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -633,18 +668,25 @@ export default function DataPemantauan() {
                   .filter(c => c.name !== 'id') // Exclude autoincrement ID primary key
                   .map((col) => {
                     const isRequired = !col.isNullable;
+                    // RBAC Logic: Lock all fields except 'tindak lanjut' unless user is ADMIN_PUSAT
+                    const isTindakLanjut = col.name.toLowerCase().includes('tindak') && col.name.toLowerCase().includes('lanjut');
+                    const isLocked = userRole !== 'ADMIN_PUSAT' && !isTindakLanjut;
+
                     return (
                       <div key={col.name} className={`space-y-1.5 ${col.name === 'rekomendasi' || col.name === 'description' ? 'md:col-span-2' : ''}`}>
-                        <label className="text-xs font-extrabold text-slate-550 dark:text-slate-400 capitalize">
-                          {col.name.replace(/_/g, ' ')} {isRequired && <span className="text-red-500">*</span>}
+                        <label className="text-xs font-extrabold text-slate-550 dark:text-slate-400 capitalize flex items-center gap-1.5">
+                          {col.name.replace(/_/g, ' ')} 
+                          {isRequired && <span className="text-red-500">*</span>}
+                          {isLocked && <span className="text-[9px] bg-slate-200 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded" title="Hanya Admin Pusat yang bisa mengubah kolom ini">Terkunci</span>}
                         </label>
                         
                         {col.type === 'boolean' ? (
                           <select
-                            required={isRequired}
+                            required={isRequired && !isLocked}
+                            disabled={isLocked}
                             value={formRecord[col.name] ? 'true' : 'false'}
                             onChange={(e) => setFormRecord({ ...formRecord, [col.name]: e.target.value === 'true' })}
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
+                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             <option value="true">Ya</option>
                             <option value="false">Tidak</option>
@@ -652,19 +694,21 @@ export default function DataPemantauan() {
                         ) : col.name === 'rekomendasi' || col.name === 'description' ? (
                           <textarea
                             rows={3}
-                            required={isRequired}
+                            required={isRequired && !isLocked}
+                            disabled={isLocked}
                             value={formRecord[col.name] || ''}
                             onChange={(e) => setFormRecord({ ...formRecord, [col.name]: e.target.value })}
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
+                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           />
                         ) : (
                           <input
                             type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
                             step={col.type === 'number' ? 'any' : undefined}
-                            required={isRequired}
+                            required={isRequired && !isLocked}
+                            disabled={isLocked}
                             value={formRecord[col.name] === null || formRecord[col.name] === undefined ? '' : formRecord[col.name]}
                             onChange={(e) => setFormRecord({ ...formRecord, [col.name]: e.target.value })}
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none"
+                            className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs font-semibold focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           />
                         )}
                       </div>

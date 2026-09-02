@@ -139,12 +139,12 @@ export default function Dashboard() {
              if (d.dynamicStatuses) {
                // Add colors to dynamic statuses based on the screenshot
                const colorMap: Record<string, string> = {
-                 'Belum Tindaklanjut': '#3B82F6', // blue
-                 'Dalam Proses': '#10B981', // green
-                 'Diusulkan Sesuai': '#EF4444', // red
-                 'Diusulkan TPTD': '#F59E0B', // orange
-                 'Sesuai': '#8B5CF6', // purple
-                 'TPTD': '#EC4899', // pink
+                 'Belum Tindaklanjut': '#eaff00ff', // blue
+                 'Dalam Proses': '#fca801ff', // green
+                 'Diusulkan Sesuai': '#042cf7ff', // red
+                 'Diusulkan TPTD': '#0bf5e2ff', // orange
+                 'Sesuai': '#00f800ff', // purple
+                 'TPTD': '#fc04ebff', // pink
                };
                const coloredStatuses = d.dynamicStatuses.map((s: any) => ({
                  ...s,
@@ -290,7 +290,6 @@ export default function Dashboard() {
         <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Jenis Pemeriksaan</h3>
-            <span className="text-[10px] bg-slate-100 dark:bg-slate-850 px-2 py-1 rounded-md text-slate-400 font-bold uppercase">STACKED BAR</span>
           </div>
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -311,7 +310,6 @@ export default function Dashboard() {
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Status Tindak Lanjut</h3>
-            <span className="text-[10px] bg-slate-100 dark:bg-slate-850 px-2 py-1 rounded-md text-slate-400 font-bold uppercase">PIE</span>
           </div>
           <div className="flex-1 h-[200px] relative flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
@@ -357,15 +355,14 @@ export default function Dashboard() {
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Unit in Charge</h3>
-          <span className="text-[10px] bg-slate-100 dark:bg-slate-850 px-2 py-1 rounded-md text-slate-400 font-bold uppercase">BAR CHART</span>
         </div>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={unitFindingsData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" className="dark:stroke-slate-800" />
               <XAxis type="number" stroke="#94A3B8" fontSize={9} fontStyle="bold" />
-              <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={9} fontStyle="bold" width={80} />
-              <Tooltip />
+              <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={9} fontStyle="bold" width={100} interval={0} tick={{ fontSize: 9 }} />
+              <Tooltip cursor={{ fill: 'transparent' }} />
               <Bar dataKey="valueToPlot" name="Rekomendasi" barSize={20}>
                 {unitFindingsData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.fill || '#1E3A8A'} />

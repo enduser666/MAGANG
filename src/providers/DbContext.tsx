@@ -41,8 +41,11 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const savedType = localStorage.getItem('db_type') as DbType;
     const savedConfig = localStorage.getItem('db_config');
 
-    if (savedType) {
+    if (savedType === 'postgres') {
       setDbTypeState(savedType);
+    } else {
+      setDbTypeState('postgres');
+      localStorage.setItem('db_type', 'postgres');
     }
     if (savedConfig) {
       try {
@@ -187,6 +190,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const getHeaders = () => {
     const headers: Record<string, string> = {
       'x-db-type': dbType,
+      'ngrok-skip-browser-warning': '69420',
     };
     if (dbType === 'postgres' && dbConfigBase64) {
       headers['x-db-config'] = dbConfigBase64;

@@ -489,7 +489,7 @@ export default function MonitoringAnalisis() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={unitFindingsData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-800" />
-                  <XAxis dataKey="name" stroke="#94A3B8" />
+                  <XAxis dataKey="name" stroke="#94A3B8" interval={0} tick={{ fontSize: 9 }} />
                   <YAxis stroke="#94A3B8" />
                   <Tooltip />
                   <Bar dataKey="Temuan" fill="#1D4ED8" radius={[4, 4, 0, 0]} />

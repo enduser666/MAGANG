@@ -438,7 +438,7 @@ export default function MonitoringRekomendasiBpk() {
                                         <td className="px-3 py-2 text-center align-middle">
                                           {isPending ? (
                                             <a
-                                              href={`/import?id=${rec.id}`}
+                                              href={`/data-pemantauan?table=rekomendasi&search=${encodeURIComponent(rec.nomorRekomendasi || lhpGroup.nomorLhp)}`}
                                               className="inline-flex items-center justify-center text-[11px] font-bold text-red-600 hover:text-red-800 hover:underline decoration-red-600"
                                               onClick={(e) => e.stopPropagation()}
                                             >

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useDb } from '@/providers/DbContext';
@@ -22,338 +22,418 @@ import {
   Building,
   Target,
   X,
-  File as FileIcon
+  File as FileIcon,
+  Trash2,
+  MessageSquare,
+  StopCircle,
+  ArrowRight
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
+  fileName?: string;
 }
 
 export default function AIAssistantWorkspace() {
   const { getHeaders } = useDb();
 
   const [inputMsg, setInputMsg] = useState('');
-  const [chatFeed, setChatFeed] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      text: 'Halo! Saya Asisten AI SIDATA, pendamping cerdas Anda untuk pengawasan internal. Silakan tanyakan hal-hal terkait data pemantauan temuan BPK, penyelesaian TLHP, manajemen risiko, atau regulasi pengawasan di lingkungan Kementerian Keuangan.'
-    }
-  ]);
+  const [chatFeed, setChatFeed] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
   const feedEndRef = useRef<HTMLDivElement>(null);
-  const messageCounter = useRef(0);
 
-  // Conversation history states
+  // History states
   const [historySearch, setHistorySearch] = useState('');
-  const [historyItems, setHistoryItems] = useState<{id: string, title: string, prompt: string}[]>([]);
+  const [historyItems, setHistoryItems] = useState<{sessionId: string, title: string, timestamp: number}[]>([]);
+  const [sessionId, setSessionId] = useState<string>('default');
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
-  // Attached file state
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  // Files
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Insight KPIs
+  // KPIs
   const [kpis, setKpis] = useState({
     totalRec: '5.612',
     outstandingRec: '2.245',
-    activeTlhp: '1.683',
-    completionRate: '92.4%',
-    highRiskUnits: '5 Unit',
-    overdueCases: '562 Kasus'
+    completionRate: '92.4%'
   });
 
-  const suggestedPrompts = [
-    'Unit mana yang memiliki temuan berulang?',
-    'Apa rekomendasi yang belum selesai?',
-    'Ringkas monitoring bulan ini.',
-    'Tampilkan tren penyelesaian TLHP.',
-    'Unit mana yang memiliki risiko tertinggi?',
-    'Buat executive summary.',
-    'Apa penyebab utama keterlambatan TLHP?'
+  const promptOptions = [
+    { label: 'Cari Temuan Terbanyak', query: 'Unit kerja mana yang memiliki temuan terbanyak?' },
+    { label: 'Rekomendasi Belum Selesai', query: 'Apa saja rekomendasi yang belum diselesaikan oleh Unit A?' },
+    { label: 'Ringkasan Monitoring', query: 'Tolong buatkan ringkasan monitoring bulan ini.' }
   ];
+
+  useEffect(() => {
+    loadHistoryList();
+    if (!sessionId || sessionId === 'default') {
+      const newSession = 'session-' + Date.now();
+      setSessionId(newSession);
+      loadConversation(newSession);
+    }
+  }, []);
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatFeed]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAttachedFile(file);
-    e.target.value = '';
+  const loadHistoryList = () => {
+    try {
+      const saved = localStorage.getItem('sidata_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const list = Object.keys(parsed).map(key => ({
+          sessionId: key,
+          title: parsed[key].title || 'Percakapan Baru',
+          timestamp: parsed[key].timestamp || 0
+        })).sort((a, b) => b.timestamp - a.timestamp);
+        setHistoryItems(list);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  // Handle submit query
-  const handleSendQuery = async (queryText: string) => {
-    if (!queryText.trim() && !attachedFile) return;
-
-    // 1. Add user message
-    messageCounter.current += 1;
-    const userMsgId = 'user-' + messageCounter.current;
-    
-    // Append file name visually in chat if file attached
-    let displayMsg = queryText;
-    if (attachedFile) {
-       displayMsg += (displayMsg ? '\n\n' : '') + `📎 [File dilampirkan: ${attachedFile.name}]`;
+  const loadConversation = (id: string) => {
+    setSessionId(id);
+    try {
+      const saved = localStorage.getItem('sidata_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed[id] && parsed[id].messages) {
+          setChatFeed(parsed[id].messages);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
+    
+    setChatFeed([{
+      id: 'welcome',
+      sender: 'assistant',
+      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau ketik pertanyaan Anda untuk mulai menganalisis.'
+    }]);
+  };
 
+  const saveConversation = (id: string, msgs: ChatMessage[], firstQuery: string) => {
+    try {
+      const saved = localStorage.getItem('sidata_chat_history');
+      let parsed: any = saved ? JSON.parse(saved) : {};
+      
+      let title = parsed[id]?.title || 'Percakapan Baru';
+      if (title === 'Percakapan Baru' && firstQuery) {
+        title = firstQuery.substring(0, 30) + (firstQuery.length > 30 ? '...' : '');
+      }
+
+      parsed[id] = {
+        title,
+        timestamp: parsed[id]?.timestamp || Date.now(),
+        messages: msgs
+      };
+      localStorage.setItem('sidata_chat_history', JSON.stringify(parsed));
+      loadHistoryList();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteSession = () => {
+    if (!sessionToDelete) return;
+    try {
+      const saved = localStorage.getItem('sidata_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        delete parsed[sessionToDelete];
+        localStorage.setItem('sidata_chat_history', JSON.stringify(parsed));
+        loadHistoryList();
+        if (sessionToDelete === sessionId) {
+          handleNewConversation();
+        }
+      }
+    } catch (e) {}
+    setSessionToDelete(null);
+  };
+
+  const handleNewConversation = () => {
+    const newSession = 'session-' + Date.now();
+    setSessionId(newSession);
+    setSelectedFile(null);
+    setInputMsg('');
+    setChatFeed([{
+      id: 'welcome',
+      sender: 'assistant',
+      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau ketik pertanyaan Anda untuk mulai menganalisis.'
+    }]);
+  };
+
+  const handleSendQuery = async (queryText: string) => {
+    if (!queryText.trim() && !selectedFile) return;
+
+    const fileToSend = selectedFile;
+    const textToSend = queryText;
+    
+    setInputMsg('');
+    setSelectedFile(null);
+    
     const userMsg: ChatMessage = {
-      id: userMsgId,
+      id: 'user-' + Date.now(),
       sender: 'user',
-      text: displayMsg || 'Tolong analisis file ini.'
+      text: textToSend,
+      fileName: fileToSend?.name
     };
 
-    setChatFeed(prev => [...prev, userMsg]);
-    setInputMsg('');
-    const fileToSend = attachedFile; // Store reference to current file
-    setAttachedFile(null); // Clear attachment UI immediately
+    const newFeed = [...chatFeed, userMsg];
+    setChatFeed(newFeed);
+    
+    const firstQuery = chatFeed.length <= 1 ? textToSend || (fileToSend ? 'Analisis Dokumen' : '') : '';
+    saveConversation(sessionId, newFeed, firstQuery);
+
     setLoading(true);
+    const controller = new AbortController();
+    setAbortController(controller);
 
     try {
-      const headers = getHeaders();
       const formData = new FormData();
-      formData.append('message', queryText || 'Tolong analisis file ini.');
+      formData.append('message', textToSend);
+      formData.append('sessionId', sessionId);
+      
+      const historyContext = newFeed.slice(1, -1).map(m => ({
+        role: m.sender,
+        content: m.text
+      }));
+      formData.append('history', JSON.stringify(historyContext));
+
       if (fileToSend) {
         formData.append('file', fileToSend);
       }
 
-      // Convert custom headers to headers object (omit Content-Type for FormData, browser sets it)
-      const fetchHeaders: Record<string, string> = { ...headers };
-
+      const headers = getHeaders();
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: fetchHeaders,
-        body: formData
+        headers: headers,
+        body: formData,
+        signal: controller.signal
       });
 
       const data = await res.json();
-      messageCounter.current += 1;
-      const botMsg: ChatMessage = {
-        id: 'bot-' + messageCounter.current,
+      
+      const assistantMsg: ChatMessage = {
+        id: 'assistant-' + Date.now(),
         sender: 'assistant',
-        text: data.success ? (data.data || data.response) : `Terjadi kesalahan: ${data.message || data.error}`
+        text: data.success ? (data.data || data.response) : 'Terjadi kesalahan: ' + (data.message || data.error)
       };
 
-      setChatFeed(prev => [...prev, botMsg]);
+      const updatedFeed = [...newFeed, assistantMsg];
+      setChatFeed(updatedFeed);
+      saveConversation(sessionId, updatedFeed, firstQuery);
     } catch (e: any) {
-      messageCounter.current += 1;
-      const errorMsg: ChatMessage = {
-        id: 'err-' + messageCounter.current,
-        sender: 'assistant',
-        text: `Gagal mengirim permintaan ke asisten: ${e.message || 'Unknown network error.'}`
-      };
-      setChatFeed(prev => [...prev, errorMsg]);
+      if (e.name !== 'AbortError') {
+        const errorMsg: ChatMessage = {
+          id: 'error-' + Date.now(),
+          sender: 'assistant',
+          text: 'Gagal menghubungi asisten AI: ' + e.message
+        };
+        setChatFeed(prev => [...prev, errorMsg]);
+      }
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   };
 
-  const handleNewConversation = () => {
-    setChatFeed([
-      {
-        id: 'welcome',
+  const handleStopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setLoading(false);
+      const abortedMsg: ChatMessage = {
+        id: 'aborted-' + Date.now(),
         sender: 'assistant',
-        text: 'Halo! Saya Asisten AI SIDATA, pendamping cerdas Anda untuk pengawasan internal. Silakan tanyakan hal-hal terkait data pemantauan temuan BPK, penyelesaian TLHP, manajemen risiko, atau regulasi pengawasan di lingkungan Kementerian Keuangan.'
-      }
-    ]);
+        text: '⚠️ Pembuatan teks dihentikan oleh pengguna.'
+      };
+      setChatFeed(prev => {
+        const newFeed = [...prev, abortedMsg];
+        saveConversation(sessionId, newFeed, '');
+        return newFeed;
+      });
+    }
   };
 
-  // Filter conversation history
-  const filteredHistory = historyItems.filter(item =>
-    item.title.toLowerCase().includes(historySearch.toLowerCase())
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!loading) {
+        handleSendQuery(inputMsg);
+      }
+    }
+  };
+
+  const filteredHistory = historyItems.filter(h => h.title.toLowerCase().includes(historySearch.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] space-y-4 animate-fade-in text-slate-800 dark:text-slate-200">
+    <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-200 flex flex-col h-[calc(100vh-140px)]">
       
-      {/* Page Title Dashboard Row */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-3 shrink-0">
-        <div>
-          <span className="text-[9px] uppercase font-extrabold tracking-widest text-[#1D4ED8] bg-blue-500/10 px-2 py-0.5 rounded">
-            Enterprise Intelligence Workspace
-          </span>
-          <h1 className="text-xl font-black text-slate-900 dark:text-white mt-1">Asisten AI SIDATA</h1>
-        </div>
+      {/* Page Title */}
+      <div className="shrink-0">
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Asisten Analitik AI</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">
+          Ajukan pertanyaan analitis menggunakan bahasa alami dan lampirkan dokumen (PDF/Excel) untuk dianalisis oleh AI.
+        </p>
       </div>
 
-      {/* Main 3-Column Workspace Grid */}
+      {/* Delete Confirmation Modal */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500 mb-4"><AlertOctagon className="h-6 w-6 shrink-0" /><h3 className="text-lg font-bold">Hapus Riwayat</h3></div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">Apakah Anda yakin ingin menghapus percakapan ini? Data riwayat tidak dapat dikembalikan.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setSessionToDelete(null)} className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-200">Batal</button>
+              <button onClick={handleDeleteSession} className="px-4 py-2 text-xs font-bold text-white bg-red-600 rounded-lg cursor-pointer hover:bg-red-700">Ya, Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
-        
-        {/* LEFT COLUMN: Conversation History */}
-        <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col min-h-0 shadow-xs">
-          
-          {/* New Chat Button */}
-          <button
-            onClick={handleNewConversation}
-            className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1D4ED8] hover:bg-blue-700 text-white py-2 text-xs font-bold transition-all shadow-xs cursor-pointer mb-4 shrink-0"
-          >
+        {/* SIDEBAR HISTORY */}
+        <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col shadow-xs overflow-hidden">
+          <button onClick={handleNewConversation} className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1D4ED8] hover:bg-blue-700 transition-colors text-white py-2 text-xs font-bold mb-4 cursor-pointer">
             <Plus className="h-4 w-4" /> Percakapan Baru
           </button>
-
-          {/* Search bar */}
-          <div className="relative font-semibold text-xs mb-3.5 shrink-0">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari riwayat..."
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
-            />
-          </div>
-
-          {/* History List */}
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1 font-bold text-xs">
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2 px-2">Riwayat Percakapan</span>
-            {filteredHistory.length === 0 ? (
-              <div className="text-[11px] text-slate-405 italic p-3 text-center">Tidak ada riwayat.</div>
-            ) : (
-              filteredHistory.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSendQuery(item.prompt)}
-                  className="w-full text-left p-2.5 rounded-lg border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-650 dark:text-slate-350 truncate hover:text-[#1D4ED8] dark:hover:text-white transition-all cursor-pointer block"
-                  title={item.title}
-                >
-                  {item.title}
+          <div className="relative mb-3.5 shrink-0"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="Cari riwayat..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} className="w-full rounded-lg border bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]" /></div>
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {filteredHistory.map((item, index) => (
+              <div key={item.sessionId || \history-\\} className="group relative flex items-center">
+                <button onClick={() => loadConversation(item.sessionId)} className={\lex-1 text-left p-2.5 rounded-lg border border-transparent truncate transition-all text-xs flex items-center gap-2 pr-8 \\}>
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-60" /> <span className="truncate">{item.title}</span>
                 </button>
-              ))
-            )}
+                <button onClick={(e) => { e.stopPropagation(); setSessionToDelete(item.sessionId); }} className="absolute right-1.5 p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* CENTER COLUMN: Interactive Chat Area */}
-        <div className="lg:col-span-4 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col min-h-0 overflow-hidden">
-          
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-[#1D4ED8]" />
-              <div>
-                <span className="text-xs font-black text-slate-850 dark:text-white block">Asisten AI SIDATA</span>
-                <span className="text-[9.5px] text-slate-450 dark:text-slate-400 block mt-0.5">Asisten cerdas untuk analisis data pengawasan dan rekomendasi BPK.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Messages Viewport */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F8FAFC]/30 dark:bg-[#0B0F19]/10">
-            {chatFeed.map((msg) => {
+        {/* CHAT AREA */}
+        <div className="lg:col-span-3 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F8FAFC]/50 dark:bg-[#0B0F19]/25">
+            {chatFeed.map((msg, index) => {
               const isUser = msg.sender === 'user';
               return (
-                <div key={msg.id} className={`flex gap-3 max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
-                  {/* Avatar */}
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                    isUser 
-                      ? 'bg-blue-500/10 text-[#1D4ED8] border border-blue-500/10'
-                      : 'bg-[#1D4ED8] text-white shadow-sm'
-                  }`}>
-                    {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4 fill-white" />}
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div className={`rounded-xl p-3.5 text-xs leading-relaxed space-y-2 border ${
-                    isUser
-                      ? 'bg-[#1D4ED8] text-white border-blue-600'
-                      : 'bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-xs'
-                  }`}>
-                    <p className="whitespace-pre-line">{msg.text}</p>
+                <div key={msg.id || \chat-\\} className={\lex gap-3 max-w-[85%] \\}>
+                  <div className={\h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 \\}>{isUser ? <User className="h-4 w-4"/> : <Sparkles className="h-4 w-4 fill-white"/>}</div>
+                  <div className={\ounded-xl p-4 text-xs leading-relaxed border \\}>
+                    {msg.fileName && (<div className="flex items-center gap-1.5 bg-black/10 px-2 py-1 rounded text-[11px] mb-2 font-semibold"><FileText className="h-3.5 w-3.5"/><span>{msg.fileName}</span></div>)}
+                    
+                    {isUser ? (
+                      <p className="whitespace-pre-line">{msg.text}</p>
+                    ) : (
+                      <div className="markdown-body">
+                        <ReactMarkdown 
+                          components={{
+                            strong: ({node, ...props}) => <span className="font-extrabold text-slate-900 dark:text-white" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-4 space-y-1 my-2" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />,
+                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                            h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-3 mb-2" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-2 mb-1" {...props} />
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
-
-            {loading && (
-              <div className="flex gap-3 mr-auto">
-                <div className="h-8 w-8 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center font-bold text-xs shrink-0 animate-pulse">
-                  <Sparkles className="h-4 w-4 fill-white" />
-                </div>
-                <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
-                  <span className="text-xs text-slate-450 italic">Asisten sedang menganalisis data...</span>
-                </div>
-              </div>
-            )}
+            {loading && (<div className="flex gap-3 mr-auto"><div className="h-8 w-8 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center animate-pulse"><Sparkles className="h-4 w-4"/></div><div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin text-slate-400"/><span className="text-xs text-slate-400">Sedang menganalisis dokumen dan menghasilkan respons...</span></div></div>)}
             <div ref={feedEndRef} />
           </div>
 
-
-          {/* Chat input bar */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendQuery(inputMsg);
-            }}
-            className="p-4 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col shrink-0"
-          >
-            {attachedFile && (
-              <div className="mb-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-[#1D4ED8] dark:text-blue-300 p-2 rounded-lg border border-blue-200 dark:border-blue-800/50 w-fit">
-                <FileIcon className="h-4 w-4 shrink-0" />
-                <span className="text-xs font-semibold truncate max-w-[200px]">{attachedFile.name}</span>
-                <span className="text-[10px] opacity-70">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
-                <button
-                  type="button"
-                  onClick={() => setAttachedFile(null)}
-                  className="ml-2 hover:bg-blue-100 dark:hover:bg-blue-900/40 p-1 rounded-full cursor-pointer"
-                  title="Remove file"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-            
-            <div className="flex gap-2.5 w-full">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 transition-all cursor-pointer flex items-center justify-center shrink-0"
-                title="Attach File (PDF, DOCX, XLSX, CSV, TXT)"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                className="hidden"
-                accept=".txt,.csv,.json,.md,.pdf,.docx,.xlsx"
-              />
-              <textarea
-                value={inputMsg}
-                onChange={(e) => setInputMsg(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!loading) {
-                      handleSendQuery(inputMsg);
-                    }
-                  }
-                }}
-                placeholder="Tanyakan analisis data SIDATA... (Shift+Enter untuk baris baru)"
-                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] resize-none overflow-y-auto"
-                rows={Math.min(5, Math.max(1, inputMsg.split('\n').length))}
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg transition-all shadow-md shadow-blue-500/10 flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0"
-              >
-                <Send className="h-4.5 w-4.5" />
-              </button>
+          {/* INPUT AREA */}
+          <div className="p-3 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] shrink-0">
+            {selectedFile && (<div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 text-[#1D4ED8] dark:text-blue-300 px-3 py-1.5 rounded-lg mb-2 text-xs w-fit max-w-full"><div className="flex items-center gap-2 truncate"><FileIcon className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{selectedFile.name}</span></div><button onClick={() => setSelectedFile(null)} className="text-red-500 hover:bg-red-50 p-1 rounded-full ml-3 shrink-0"><X className="h-4 w-4"/></button></div>)}
+            <div className="flex items-end gap-2">
+              <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.xlsx,.xls,.csv,image/*,.docx,.txt" onChange={(e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]); }} />
+              <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-slate-600 border dark:border-slate-800 rounded-lg cursor-pointer bg-slate-50 dark:bg-slate-900 transition-colors" title="Lampirkan File"><Paperclip className="h-4 w-4"/></button>
+              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen... (Shift+Enter untuk baris baru)" className="flex-1 max-h-32 resize-none rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" />
+              {loading ? (
+                <button onClick={handleStopGeneration} className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-lg cursor-pointer shadow-md transition-colors" title="Hentikan Response"><StopCircle className="h-4.5 w-4.5"/></button>
+              ) : (
+                <button onClick={() => handleSendQuery(inputMsg)} disabled={!inputMsg.trim() && !selectedFile} className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg disabled:opacity-50 cursor-pointer shadow-md transition-colors" title="Kirim Pesan"><Send className="h-4.5 w-4.5"/></button>
+              )}
             </div>
             <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 font-medium">
               Asisten AI SIDATA dapat membuat kesalahan. Harap periksa kembali informasi yang dihasilkan.
             </p>
-          </form>
+          </div>
         </div>
 
+        {/* COMBINED RIGHT SIDEBAR (KPI & TOPIK REKOMENDASI) */}
+        <div className="lg:col-span-1 rounded-xl flex flex-col gap-4 min-h-0">
+          
+          {/* Topik Rekomendasi Panel (Azriel-Branch feature) */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
+            <h3 className="text-xs font-extrabold text-slate-450 uppercase tracking-wider flex items-center gap-2 mb-3">
+              <Lightbulb className="h-4 w-4 text-[#1D4ED8]" /> Topik Rekomendasi
+            </h3>
+            
+            <div className="space-y-2">
+              {promptOptions.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendQuery(opt.query)}
+                  className="w-full flex items-center justify-between p-2.5 text-left border border-slate-100 dark:border-slate-850 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-bold text-slate-650 dark:text-slate-300 transition-all cursor-pointer"
+                >
+                  <span className="truncate">{opt.label}</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[#1D4ED8] shrink-0 ml-2" />
+                </button>
+              ))}
+            </div>
 
+            <div className="border-t border-slate-100 dark:border-slate-850 pt-3 mt-3 text-[10px] text-slate-400 leading-relaxed font-semibold">
+              <div className="flex gap-2">
+                <HelpCircle className="h-4.5 w-4.5 text-slate-450 shrink-0" />
+                <p>Pilih topik untuk memulai pertanyaan analitis otomatis ke sistem.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI Panel */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs flex-1 overflow-y-auto">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b dark:border-slate-800 pb-2 mb-3">Insight Panel (KPI)</span>
+            <div className="space-y-3">
+               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                 <p className="text-[9px] font-bold text-slate-500">TOTAL REKOMENDASI</p>
+                 <p className="text-base font-black">{kpis.totalRec}</p>
+               </div>
+               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                 <p className="text-[9px] font-bold text-slate-500">BELUM SELESAI</p>
+                 <p className="text-base font-black text-amber-600">{kpis.outstandingRec}</p>
+               </div>
+               <div className="p-3 border dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                 <p className="text-[9px] font-bold text-slate-500">PERSENTASE PENYELESAIAN</p>
+                 <p className="text-base font-black text-emerald-600">{kpis.completionRate}</p>
+               </div>
+            </div>
+          </div>
+
+        </div>
 
       </div>
-
     </div>
   );
 }
