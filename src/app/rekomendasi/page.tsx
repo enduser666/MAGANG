@@ -442,7 +442,7 @@ export default function MonitoringRekomendasiBpk() {
                                               className="inline-flex items-center justify-center text-[11px] font-bold text-red-600 hover:text-red-800 hover:underline decoration-red-600"
                                               onClick={(e) => e.stopPropagation()}
                                             >
-                                              Data Pemantauan
+                                              Input TL
                                             </a>
                                           ) : (
                                             <span className="text-red-600 font-bold">-</span>
