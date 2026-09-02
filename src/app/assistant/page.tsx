@@ -82,12 +82,16 @@ export default function AIAssistantWorkspace() {
     try {
       const saved = localStorage.getItem('sidata_chat_history');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        const list = Object.keys(parsed).map(key => ({
-          sessionId: key,
-          title: parsed[key].title || 'Percakapan Baru',
-          timestamp: parsed[key].timestamp || 0
-        })).sort((a, b) => b.timestamp - a.timestamp);
+        let parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) || typeof parsed !== 'object' || parsed === null) parsed = {};
+        
+        const list = Object.keys(parsed)
+          .filter(key => parsed[key] !== null && typeof parsed[key] === 'object')
+          .map(key => ({
+            sessionId: key,
+            title: parsed[key].title || 'Percakapan Baru',
+            timestamp: parsed[key].timestamp || 0
+          })).sort((a, b) => b.timestamp - a.timestamp);
         setHistoryItems(list);
       } else {
         setHistoryItems([]);
@@ -103,7 +107,9 @@ export default function AIAssistantWorkspace() {
     try {
       const saved = localStorage.getItem('sidata_chat_history');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        let parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) || typeof parsed !== 'object' || parsed === null) parsed = {};
+        
         if (parsed[id] && parsed[id].messages) {
           setChatFeed(parsed[id].messages);
           return;
@@ -124,6 +130,7 @@ export default function AIAssistantWorkspace() {
     try {
       const saved = localStorage.getItem('sidata_chat_history');
       let parsed: any = saved ? JSON.parse(saved) : {};
+      if (Array.isArray(parsed) || typeof parsed !== 'object' || parsed === null) parsed = {};
       
       let title = parsed[id]?.title || 'Percakapan Baru';
       if (title === 'Percakapan Baru' && firstQuery) {
@@ -147,7 +154,9 @@ export default function AIAssistantWorkspace() {
     try {
       const saved = localStorage.getItem('sidata_chat_history');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        let parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) || typeof parsed !== 'object' || parsed === null) parsed = {};
+        
         delete parsed[sessionToDelete];
         localStorage.setItem('sidata_chat_history', JSON.stringify(parsed));
         
