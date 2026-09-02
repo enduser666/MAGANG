@@ -203,8 +203,8 @@ export default function Dashboard() {
               className={`rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] ${userSession?.accessScope === 'OWN_UNIT' ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {userSession?.accessScope !== 'OWN_UNIT' && <option value="">Semua Unit</option>}
-              {dbUnits.map(u => (
-                <option key={u.id} value={u.id}>
+              {dbUnits.map((u, i) => (
+                <option key={u.id || u.kode_unit || i} value={u.id}>
                   {userSession?.accessScope === 'OWN_UNIT' && String(u.id) !== selectedUnit ? `🔒 ${u.kode_unit}` : (userSession?.accessScope === 'OWN_UNIT' && String(u.id) === selectedUnit ? `🔒 ${u.kode_unit}` : u.kode_unit)}
                 </option>
               ))}
