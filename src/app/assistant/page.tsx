@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useDb } from '@/providers/DbContext';
@@ -312,8 +312,8 @@ export default function AIAssistantWorkspace() {
           <div className="relative mb-3.5 shrink-0"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="Cari riwayat..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} className="w-full rounded-lg border bg-slate-50 dark:bg-slate-900 pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]" /></div>
           <div className="flex-1 overflow-y-auto space-y-1">
             {filteredHistory.map((item, index) => (
-              <div key={item.sessionId || \history-\\} className="group relative flex items-center">
-                <button onClick={() => loadConversation(item.sessionId)} className={\lex-1 text-left p-2.5 rounded-lg border border-transparent truncate transition-all text-xs flex items-center gap-2 pr-8 \\}>
+              <div key={item.sessionId || `history-${index}`} className="group relative flex items-center">
+                <button onClick={() => loadConversation(item.sessionId)} className={`flex-1 text-left p-2.5 rounded-lg border border-transparent truncate transition-all text-xs flex items-center gap-2 pr-8 ${item.sessionId === sessionId ? 'bg-blue-50 text-[#1D4ED8] font-bold' : 'hover:bg-slate-50 cursor-pointer'}`}>
                   <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-60" /> <span className="truncate">{item.title}</span>
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSessionToDelete(item.sessionId); }} className="absolute right-1.5 p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
@@ -330,9 +330,9 @@ export default function AIAssistantWorkspace() {
             {chatFeed.map((msg, index) => {
               const isUser = msg.sender === 'user';
               return (
-                <div key={msg.id || \chat-\\} className={\lex gap-3 max-w-[85%] \\}>
-                  <div className={\h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 \\}>{isUser ? <User className="h-4 w-4"/> : <Sparkles className="h-4 w-4 fill-white"/>}</div>
-                  <div className={\ounded-xl p-4 text-xs leading-relaxed border \\}>
+                <div key={msg.id || `chat-${index}`} className={`flex gap-3 max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${isUser ? 'bg-blue-500/10 text-[#1D4ED8]' : 'bg-[#1D4ED8] text-white'}`}>{isUser ? <User className="h-4 w-4"/> : <Sparkles className="h-4 w-4 fill-white"/>}</div>
+                  <div className={`rounded-xl p-4 text-xs leading-relaxed border ${isUser ? 'bg-[#1D4ED8] text-white border-blue-600' : 'bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 shadow-xs'}`}>
                     {msg.fileName && (<div className="flex items-center gap-1.5 bg-black/10 px-2 py-1 rounded text-[11px] mb-2 font-semibold"><FileText className="h-3.5 w-3.5"/><span>{msg.fileName}</span></div>)}
                     
                     {isUser ? (
