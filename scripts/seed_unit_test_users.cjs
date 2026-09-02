@@ -23,8 +23,15 @@ const targetAccounts = [
   { username: 'admin.setjen', role: 'ADMIN_UNIT', access_scope: 'OWN_UNIT', unit_kode: 'SETJEN' }
 ];
 
+require('dotenv').config({path: '.env.local'});
 async function run() {
-  const conn = await mysql.createConnection({host:'localhost', user:'root', database:'sidata_test'});
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT
+  });
   console.log("=== SEEDING USERS ===");
 
   // 1. Fetch units

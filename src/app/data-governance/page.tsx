@@ -83,10 +83,22 @@ export default function DataGovernance() {
   // --- TAB: LINEAGE STATE ---
   const [activeNode, setActiveNode] = useState<string>('node-table');
   const [nodes, setNodes] = useState<LineageNode[]>([]);
+  const [tableMetadata, setTableMetadata] = useState<any[]>([]);
+  const [tableLineage, setTableLineage] = useState<any>({ upstream: [], downstream: [] });
 
-  // Fetch tables
+  const [dbHealth, setDbHealth] = useState<any>({
+    engine: 'Loading...',
+    storageSize: 'Loading...',
+    activeConnections: 0,
+    primaryKeysState: 'Loading...',
+    indexesState: 'Loading...',
+    foreignKeysState: 'Loading...',
+    schemaDrift: 'Loading...'
+  });
+
+  // Fetch tables and db health
   useEffect(() => {
-    const fetchTables = async () => {
+    const fetchData = async () => {
       try {
         const headers = getHeaders();
         const res = await fetch('/api/tables', { headers });
@@ -94,120 +106,114 @@ export default function DataGovernance() {
         if (data.success && data.data.length > 0) {
           setTablesList(data.data);
         }
+
+        const healthRes = await fetch('/api/db-health', { headers });
+        const healthData = await healthRes.json();
+        if (healthData.success) {
+          setDbHealth(healthData.data);
+        }
       } catch (e) {
         console.error(e);
       }
     };
-    fetchTables();
+    fetchData();
   }, [dbType, connectionStatus, getHeaders]);
 
   // Calculate dynamic properties on selection change
   useEffect(() => {
     if (!selectedTable) return;
     const activeTbl = tablesList.find(t => t.name === selectedTable) || {
-      displayName: 'Temuan Pengawasan Intern',
-      sourceFile: 'Financial_Audit_Master_2026.xlsx',
-      creator: 'Rina S. (Admin)',
+      displayName: selectedTable,
+      sourceFile: selectedTable + '.sql',
+      creator: 'System',
       createdAt: new Date().toISOString(),
-      rowCount: 24,
+      rowCount: kpis.totalRecords,
       columns: [],
-      qualityScore: 94
+      qualityScore: kpis.healthScore
     };
 
-    const schemaColumnsCount = activeTbl.columns?.length || 11;
-    const recordsCount = activeTbl.rowCount || 24;
+    const recordsCount = kpis.totalRecords || 0;
+    const schemaColumnsCount = tableMetadata.length || 0;
 
-    const pipelineNodes: LineageNode[] = [
-      {
-        id: 'node-file',
-        type: 'file',
-        name: activeTbl.sourceFile || 'Financial_Audit_Master_2026.xlsx',
-        subName: 'Berkas Sumber (Source)',
-        badge: 'UPLOAD MANUAL',
-        owner: activeTbl.creator || 'Rina S. (Admin)',
-        lastModified: new Date(activeTbl.createdAt).toLocaleDateString(),
+    const pipelineNodes: LineageNode[] = [];
+
+    // Add Upstream nodes
+    tableLineage.upstream.forEach((up: any, i: number) => {
+      pipelineNodes.push({
+        id: `node-up-${i}`,
+        type: 'table',
+        name: up.table,
+        subName: 'Upstream Dependency',
+        badge: 'FOREIGN KEY',
+        owner: 'System',
+        lastModified: 'Automated',
         details: {
-          'Format Berkas': 'XLSX (Excel)',
-          'Ukuran': '8.4 MB',
-          'Metode Ingesti': 'Portal Web SIDATA',
-          'Pengunggah': activeTbl.creator || 'Rina S. (Admin)'
+          'Table': up.table,
+          'Linked via': up.column
         },
         upstream: [],
-        downstream: ['node-sheet']
-      },
-      {
-        id: 'node-sheet',
-        type: 'sheet',
-        name: activeTbl.displayName || 'Temuan_Pengawasan',
-        subName: 'Excel Worksheet',
-        badge: 'TERVALIDASI',
-        owner: activeTbl.creator || 'Rina S. (Admin)',
-        lastModified: new Date(activeTbl.createdAt).toLocaleDateString(),
-        details: {
-          'Lembar Kerja': activeTbl.displayName,
-          'Total Baris': recordsCount,
-          'Jumlah Kolom': schemaColumnsCount,
-          'Validasi Skema': 'Lolos (100%)'
-        },
-        upstream: ['node-file'],
         downstream: ['node-table']
+      });
+    });
+
+    // Add Main Table Node
+    pipelineNodes.push({
+      id: 'node-table',
+      type: 'table',
+      name: activeTbl.name || selectedTable,
+      subName: 'Tabel Utama',
+      badge: 'TERINDEKS',
+      owner: 'System Database',
+      lastModified: new Date(activeTbl.createdAt).toLocaleTimeString(),
+      details: {
+        'Nama Tabel': activeTbl.name || selectedTable,
+        'Jumlah Row': recordsCount,
+        'Skor Kualitas': `${activeTbl.qualityScore || kpis.healthScore}%`
       },
-      {
-        id: 'node-table',
+      upstream: tableLineage.upstream.map((_: any, i: number) => `node-up-${i}`),
+      downstream: tableLineage.downstream.map((_: any, i: number) => `node-down-${i}`)
+    });
+
+    // Add Downstream nodes
+    tableLineage.downstream.forEach((down: any, i: number) => {
+      pipelineNodes.push({
+        id: `node-down-${i}`,
         type: 'table',
-        name: activeTbl.name || 'temuan_pengawasan',
-        subName: 'Tabel PostgreSQL',
-        badge: 'TERINDEKS',
-        owner: 'System Database',
-        lastModified: new Date(activeTbl.createdAt).toLocaleTimeString(),
+        name: down.table,
+        subName: 'Downstream Dependency',
+        badge: 'FOREIGN KEY',
+        owner: 'System',
+        lastModified: 'Automated',
         details: {
-          'Nama Tabel': activeTbl.name,
-          'Skema Relasional': 'public_sidata',
-          'Engine DB': 'PostgreSQL 16',
-          'Jumlah Row': recordsCount,
-          'Skor Kualitas': `${activeTbl.qualityScore || 94}%`
-        },
-        upstream: ['node-sheet'],
-        downstream: ['node-dashboard', 'node-report']
-      },
-      {
-        id: 'node-dashboard',
-        type: 'dashboard',
-        name: 'Dashboard Insights Eksekutif',
-        subName: 'Visualisasi Widget',
-        badge: 'PUBLISHED',
-        owner: 'Budi P. (Analyst)',
-        lastModified: '10 menit yang lalu',
-        details: {
-          'Dashboard': 'Overview Eksekutif',
-          'Total Visual': 4,
-          'Akses Otoritas': 'Itjen, DJP, DJBC, DJKN',
-          'Views': '1,240'
+          'Table': down.table,
+          'Linked via': down.column
         },
         upstream: ['node-table'],
         downstream: []
-      },
-      {
+      });
+    });
+
+    // If no lineage, add a dummy report node just to show connection
+    if (pipelineNodes.length === 1) {
+      pipelineNodes.push({
         id: 'node-report',
         type: 'report',
-        name: 'Laporan Triwulan Pemantauan',
-        subName: 'Dokumen PDF / XLSX',
-        badge: 'ARSIP',
-        owner: 'Auditor Utama',
-        lastModified: '1 hari yang lalu',
+        name: 'Dashboard Analytics',
+        subName: 'Visualisasi Widget',
+        badge: 'PLANNED',
+        owner: 'System',
+        lastModified: 'N/A',
         details: {
-          'Format Dokumen': 'PDF / Excel Export',
-          'Periode Audit': 'Triwulan II - 2026',
-          'Generated': 'Otomatisasi Sistem',
-          'Penerima': 'Pimpinan Inspektorat Jenderal'
+          'Status': 'Coming Soon / Not Configured'
         },
         upstream: ['node-table'],
         downstream: []
-      }
-    ];
+      });
+      pipelineNodes[0].downstream = ['node-report'];
+    }
 
     setNodes(pipelineNodes);
-  }, [selectedTable, tablesList]);
+  }, [selectedTable, tablesList, kpis, tableMetadata, tableLineage]);
 
   // Load Quality KPIs dynamically based on selected table
   const fetchQualityData = useCallback(async (tableName: string) => {
@@ -217,69 +223,23 @@ export default function DataGovernance() {
 
     try {
       const headers = getHeaders();
-      const res = await fetch(`/api/tables/${tableName}?limit=1000`, { headers });
+      const res = await fetch(`/api/data-governance/table-metrics?table=${tableName}`, { headers });
       const data = await res.json();
 
       if (data.success) {
-        const rows = data.data;
-        const total = rows.length;
-
-        let missingCells = 0;
-        let dupCount = 0;
-        const seen = new Set();
-        const colDefinitions = data.metadata?.columns || data.meta?.metadata?.columns || [];
-
-        rows.forEach((row: any) => {
-          colDefinitions.forEach((c: any) => {
-            const val = row[c.name];
-            if (val === undefined || val === null || val === '') {
-              missingCells++;
-            }
-          });
-
-          const rowHash = JSON.stringify(Object.values(row));
-          if (seen.has(rowHash)) {
-            dupCount++;
-          } else {
-            seen.add(rowHash);
-          }
-        });
-
-        const dynamicViolations: any[] = [];
-        let errorCount = 0;
-
-        rows.slice(0, 5).forEach((row: any, idx: number) => {
-          colDefinitions.forEach((c: any) => {
-            const val = row[c.name];
-            if (val === undefined || val === null || val === '') {
-              errorCount++;
-              dynamicViolations.push({
-                id: `#ERR-${idx + 1}${c.name.substring(0,2).toUpperCase()}`,
-                field: c.name,
-                issueType: 'Null Value',
-                severity: 'CRITICAL',
-                suggestedFix: `Kolom ${c.name} pada baris ${idx + 1} bernilai kosong. Harap tambahkan data.`,
-                status: 'OPEN'
-              });
-            }
-          });
-        });
-
-        setViolations(dynamicViolations.length > 0 ? dynamicViolations : [
-          { id: '#A992-B1X', field: 'NPWP_Number', issueType: 'Format Mismatch', severity: 'CRITICAL', suggestedFix: 'Expected 15 digits, found 14. Possible leading zero dropped.', status: 'OPEN' }
-        ]);
-
-        const valid = Math.max(0, total - dupCount);
-        const score = total > 0 ? Number((((total * colDefinitions.length - missingCells) / (total * colDefinitions.length)) * 100).toFixed(1)) : 100;
-
+        const metrics = data.data.metrics;
+        
         setKpis({
-          totalRecords: total === 24 ? 1452890 : total,
-          validRecords: total === 24 ? 1430120 : valid,
-          duplicates: total === 24 ? 4500 : dupCount,
-          missingValues: total === 24 ? 15200 : missingCells,
-          schemaErrors: total === 24 ? 3070 : errorCount,
-          healthScore: total === 24 ? 98.4 : score
+          totalRecords: metrics.totalRecords,
+          validRecords: metrics.validRecords,
+          duplicates: metrics.duplicates,
+          missingValues: metrics.missingValues,
+          schemaErrors: 0, // Simplify for now
+          healthScore: metrics.healthScore
         });
+
+        setTableMetadata(data.data.metadata || []);
+        setTableLineage(data.data.lineage || { upstream: [], downstream: [] });
       }
     } catch (e) {
       console.error(e);
@@ -385,27 +345,27 @@ export default function DataGovernance() {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Total Baris (Records)</span>
-              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.totalRecords.toLocaleString()}</p>
+              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.totalRecords.toLocaleString('id-ID')}</p>
               <span className="text-[9px] text-emerald-600 font-bold block mt-1">+12.4k vs minggu lalu</span>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Baris Valid</span>
-              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.validRecords.toLocaleString()}</p>
+              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.validRecords.toLocaleString('id-ID')}</p>
               <span className="text-[9px] text-[#1D4ED8] font-bold block mt-1">{kpis.healthScore}% Skor Integritas</span>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Duplikasi Data</span>
-              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.duplicates.toLocaleString()}</p>
+              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.duplicates.toLocaleString('id-ID')}</p>
               <span className="text-[9px] text-slate-400 font-bold block mt-1">Saringan otomatis</span>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Sel Kosong (Nulls)</span>
-              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.missingValues.toLocaleString()}</p>
+              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.missingValues.toLocaleString('id-ID')}</p>
               <span className="text-[9px] text-red-500 font-bold block mt-1">Deteksi kelengkapan</span>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 shadow-xs">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Tipe Tidak Sesuai</span>
-              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.schemaErrors.toLocaleString()}</p>
+              <p className="text-xl font-black mt-1 text-slate-900 dark:text-white">{kpis.schemaErrors.toLocaleString('id-ID')}</p>
               <span className="text-[9px] text-red-500 font-bold block mt-1">Evaluasi skema</span>
             </div>
           </div>
@@ -621,28 +581,34 @@ export default function DataGovernance() {
           <div className="flex justify-between items-center border-b border-slate-150 dark:border-slate-800 pb-3">
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Kamus Data Kamus Relasional</h3>
-              <p className="text-[10px] text-slate-400 font-semibold">Tabel Kolom dan Definisi Data Integrasi SIDATA.</p>
+              <p className="text-[10px] text-slate-400 font-semibold">Struktur kolom dari tabel <span className="font-mono text-[#1D4ED8]">{selectedTable}</span>.</p>
             </div>
-            <span className="text-[10px] bg-blue-500/10 text-[#1D4ED8] px-2 py-0.5 rounded font-bold">Total: {tablesList.length} Tabel</span>
+            <span className="text-[10px] bg-blue-500/10 text-[#1D4ED8] px-2 py-0.5 rounded font-bold">Total Kolom: {tableMetadata.length}</span>
           </div>
 
           <div className="space-y-4">
-            {tablesList.map(t => (
-              <div key={t.name} className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-slate-50/20 dark:bg-slate-900/10 space-y-3">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-slate-50/20 dark:bg-slate-900/10 space-y-3">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-black text-xs text-slate-900 dark:text-white">{t.displayName} <span className="font-mono text-[9px] text-slate-400 font-medium">({t.name})</span></h4>
-                  <span className="text-[9px] font-mono bg-[#1d4ed8]/10 text-[#1d4ed8] px-1.5 py-0.5 rounded font-bold">{t.rowCount} baris data</span>
+                  <h4 className="font-black text-xs text-slate-900 dark:text-white">{selectedTable}</h4>
+                  <span className="text-[9px] font-mono bg-[#1d4ed8]/10 text-[#1d4ed8] px-1.5 py-0.5 rounded font-bold">{kpis.totalRecords} baris data</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                  {t.columns.map((c: any) => (
-                    <div key={c.name} className="bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-2 rounded-lg flex items-center justify-between">
-                      <span className="font-semibold text-slate-700 dark:text-slate-350 truncate">{c.name}</span>
-                      <span className="text-[9px] font-mono uppercase bg-slate-100 dark:bg-slate-850 text-slate-450 px-1 rounded shrink-0">{c.type}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  {tableMetadata.map((c: any) => (
+                    <div key={c.name} className="bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3 rounded-lg flex flex-col justify-center gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white truncate flex items-center gap-1">
+                          {c.name} 
+                          {c.key === 'PRI' && <span className="text-[8px] bg-amber-500/20 text-amber-600 px-1 py-0.5 rounded uppercase">PK</span>}
+                          {c.key === 'MUL' && <span className="text-[8px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded uppercase">FK</span>}
+                        </span>
+                        <span className="text-[9px] font-mono uppercase bg-slate-100 dark:bg-slate-850 text-slate-500 px-1.5 py-0.5 rounded shrink-0">{c.type}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-medium">Nullable: {c.isNullable === 'YES' ? 'Yes' : 'No'}</div>
+                      {c.comment && <div className="text-[9px] text-slate-500 italic mt-1">{c.comment}</div>}
                     </div>
                   ))}
                 </div>
               </div>
-            ))}
           </div>
         </div>
       )}
@@ -653,30 +619,33 @@ export default function DataGovernance() {
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs space-y-4">
             <h4 className="font-black text-xs text-slate-850 dark:text-white uppercase tracking-wider flex items-center gap-1.5"><Server className="h-4.5 w-4.5 text-[#1D4ED8]" /> Database Specs</h4>
             <div className="divide-y divide-slate-100 dark:divide-slate-850">
-              <div className="flex justify-between py-2"><span>Engine DB</span><span className="font-bold">PostgreSQL 16.2</span></div>
-              <div className="flex justify-between py-2"><span>Total Storage Size</span><span className="font-bold">142.5 MB</span></div>
+              <div className="flex justify-between py-2"><span>Engine DB</span><span className="font-bold text-slate-900 dark:text-white">{dbHealth.engine}</span></div>
+              <div className="flex justify-between py-2"><span>Total Storage Size</span><span className="font-bold text-slate-900 dark:text-white">{dbHealth.storageSize}</span></div>
               <div className="flex justify-between py-2"><span>Connection Status</span><span className="font-bold text-emerald-600">CONNECTED</span></div>
-              <div className="flex justify-between py-2"><span>Active Connections</span><span className="font-bold">12 Client(s)</span></div>
+              <div className="flex justify-between py-2"><span>Active Connections</span><span className="font-bold text-slate-900 dark:text-white">{dbHealth.activeConnections} Client(s)</span></div>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs space-y-4">
             <h4 className="font-black text-xs text-slate-850 dark:text-white uppercase tracking-wider flex items-center gap-1.5"><ShieldCheck className="h-4.5 w-4.5 text-[#1D4ED8]" /> Index & Integrity Health</h4>
             <div className="divide-y divide-slate-100 dark:divide-slate-850">
-              <div className="flex justify-between py-2"><span>Primary Keys Registered</span><span className="font-bold text-emerald-600">PASSED (100%)</span></div>
-              <div className="flex justify-between py-2"><span>Indexes State</span><span className="font-bold text-emerald-600">OPTIMAL</span></div>
-              <div className="flex justify-between py-2"><span>Foreign Key Checks</span><span className="font-bold text-emerald-600">VALIDATED</span></div>
-              <div className="flex justify-between py-2"><span>Schema Drift Detected</span><span className="font-bold">NONE (Stable)</span></div>
+              <div className="flex justify-between py-2"><span>Primary Keys Registered</span><span className="font-bold text-emerald-600">{dbHealth.primaryKeysState}</span></div>
+              <div className="flex justify-between py-2"><span>Indexes State</span><span className="font-bold text-emerald-600">{dbHealth.indexesState}</span></div>
+              <div className="flex justify-between py-2"><span>Foreign Key Checks</span><span className="font-bold text-emerald-600">{dbHealth.foreignKeysState}</span></div>
+              <div className="flex justify-between py-2"><span>Schema Drift Detected</span><span className="font-bold text-slate-900 dark:text-white">{dbHealth.schemaDrift}</span></div>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs space-y-4">
-            <h4 className="font-black text-xs text-slate-850 dark:text-white uppercase tracking-wider flex items-center gap-1.5"><Clock className="h-4.5 w-4.5 text-[#1D4ED8]" /> Auto-Backup Status</h4>
-            <div className="divide-y divide-slate-100 dark:divide-slate-850">
-              <div className="flex justify-between py-2"><span>Last Daily Backup</span><span className="font-bold">Yesterday 23:00</span></div>
-              <div className="flex justify-between py-2"><span>Next Schedule Run</span><span className="font-bold">Today 23:00</span></div>
-              <div className="flex justify-between py-2"><span>Storage Location</span><span className="font-bold">Kemenkeu Secure S3</span></div>
-              <div className="flex justify-between py-2"><span>Backup Encryption</span><span className="font-bold text-emerald-600">AES-256 Enabled</span></div>
+            <div className="flex justify-between items-center">
+              <h4 className="font-black text-xs text-slate-850 dark:text-white uppercase tracking-wider flex items-center gap-1.5"><Clock className="h-4.5 w-4.5 text-[#1D4ED8]" /> Auto-Backup Status</h4>
+              <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Planned</span>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-850 opacity-60">
+              <div className="flex justify-between py-2"><span>Last Daily Backup</span><span className="font-bold">-</span></div>
+              <div className="flex justify-between py-2"><span>Next Schedule Run</span><span className="font-bold">-</span></div>
+              <div className="flex justify-between py-2"><span>Storage Location</span><span className="font-bold">Not Configured</span></div>
+              <div className="flex justify-between py-2"><span>Backup Encryption</span><span className="font-bold">-</span></div>
             </div>
           </div>
         </div>

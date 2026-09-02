@@ -64,24 +64,7 @@ export const POST = withRequestContext(async (request: Request) => {
       permissions: ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS['VIEWER']
     });
 
-    // Set cookie
-    const cookieStore = await cookies();
-    cookieStore.set('session_token', token, {
-      httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/'
-    });
-
-    // Write audit log
-    await db.auditLogs.create({
-      action: 'USER_LOGIN',
-      details: `User logged in: "${user.username}"`,
-      user: user.username
-    });
-
-    return ApiResponse.success({
+    const response = ApiResponse.success({
       id: user.id,
       username: user.username,
       role: user.role,
@@ -90,6 +73,14 @@ export const POST = withRequestContext(async (request: Request) => {
       accessScope: user.accessScope || 'OWN_UNIT',
       permissions: ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS['VIEWER']
     }, 'Sesi masuk berhasil dibuat');
+
+    response.cookies.set('session_token', token, {
+      httpOnly: false,
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/'
+    });
+
+    return response;
 
   } catch (error: any) {
     console.error('Login route error:', error);

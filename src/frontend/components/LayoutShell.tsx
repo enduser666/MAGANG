@@ -212,7 +212,8 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
     icon: any;
     href?: string;
     perm?: string;
-    children?: { name: string; href: string; icon: any; perm?: string; role?: string }[];
+    roles?: string[];
+    children?: { name: string; href: string; icon: any; perm?: string; roles?: string[] }[];
   };
 
   const navigationGroups: NavigationGroup[] = [
@@ -223,7 +224,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       icon: Activity,
       children: [
         { name: 'Monitoring Rekomendasi BPK', href: '/rekomendasi', icon: FileCheck },
-        { name: 'Monitoring TLHP', href: '/tlhp', icon: ClipboardCheck },
+        // { name: 'Monitoring TLHP', href: '/tlhp', icon: ClipboardCheck }, // Diarsipkan sementara (sewaktu-waktu bisa ditampilkan lagi)
       ]
     },
     {
@@ -231,9 +232,9 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       label: 'Input Data',
       icon: Database,
       children: [
-        { name: 'Integrasi Data', href: '/import', icon: UploadCloud },
-        { name: 'Update TL', href: '/reports', icon: FileText },
-        { name: 'Data Pemantauan', href: '/data-pemantauan', icon: Database },
+        { name: 'Integrasi Data', href: '/import', icon: UploadCloud, roles: ['ADMIN_PUSAT'] },
+        { name: 'Update TL', href: '/reports', icon: FileText, roles: ['ADMIN_PUSAT', 'EDITOR_UNIT'] },
+        { name: 'Update Data', href: '/data-pemantauan', icon: Database, roles: ['ADMIN_PUSAT', 'ADMIN_UNIT', 'EDITOR_UNIT'] },
       ]
     },
     {
@@ -252,10 +253,10 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       label: 'Administrasi',
       icon: SettingsIcon,
       children: [
-        { name: 'Data Governance', href: '/data-governance', icon: ShieldCheck, perm: 'system.manage' },
-        { name: 'Log Audit', href: '/audit', icon: History, perm: 'system.manage' },
-        { name: 'Manajemen Pengguna', href: '/users', icon: Users, perm: 'user.manage' },
-        { name: 'Manajemen Dataset', href: '/datasets', icon: Database, role: 'ADMIN_PUSAT' },
+        { name: 'Data Governance', href: '/data-governance', icon: ShieldCheck, roles: ['ADMIN_PUSAT'] },
+        { name: 'Log Audit', href: '/audit', icon: History, roles: ['ADMIN_PUSAT'] },
+        { name: 'Manajemen Pengguna', href: '/users', icon: Users, roles: ['ADMIN_PUSAT'] },
+        { name: 'Manajemen Dataset', href: '/datasets', icon: Database, roles: ['ADMIN_PUSAT'] },
         { name: 'Profile', href: '/settings', icon: UserIcon },
       ]
     }
@@ -264,7 +265,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
   const visibleNavigationGroups = navigationGroups.map(group => {
     if (!group.children) return group;
     const filteredChildren = group.children.filter(child => {
-      if (child.role) return user?.role === child.role;
+      if (child.roles) return child.roles.includes(user?.role || '');
       if (child.perm) {
         if (Array.isArray(user?.permissions)) {
           return user.permissions.includes(child.perm);
@@ -324,7 +325,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         else if (part === 'assistant') name = 'Asisten AI SIDATA';
         else if (part === 'tlhp') name = 'Monitoring TLHP';
         else if (part === 'rekomendasi') name = 'Monitoring Rekomendasi BPK';
-        else if (part === 'data-pemantauan') name = 'Data Pemantauan';
+        else if (part === 'data-pemantauan') name = 'Update Data';
         else if (part === 'monitoring-analisis') name = 'Monitoring & Analisis';
         else if (part === 'ews') name = 'Early Warning System';
         else if (part === 'iku') name = 'IKU';

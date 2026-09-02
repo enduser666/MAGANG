@@ -308,8 +308,12 @@ export class MySQLAdapter implements DbInterface {
     }
 
     const mapType = (type: string): string => {
-      switch (type.toLowerCase()) {
-        case 'text': return 'TEXT';
+      const typeStr = type.toLowerCase();
+      if (typeStr.includes('varchar') || typeStr === 'string' || typeStr === 'text') {
+        return 'LONGTEXT'; // Safest for arbitrary spreadsheet text (Excel cells can be up to ~131KB in utf8mb4)
+      }
+      
+      switch (typeStr) {
         case 'integer':
         case 'int': return 'INT';
         case 'number':
@@ -317,8 +321,7 @@ export class MySQLAdapter implements DbInterface {
         case 'boolean': return 'TINYINT(1)';
         case 'date': return 'DATE';
         case 'datetime': return 'DATETIME';
-        case 'string':
-        default: return 'VARCHAR(255)';
+        default: return 'LONGTEXT';
       }
     };
 
@@ -359,7 +362,31 @@ export class MySQLAdapter implements DbInterface {
                 const rowValues = colsToInsert.map(colName => {
                   let val = row[colName];
                   if (val === undefined || val === '') return null;
-                  if (typeof val === 'boolean') return val ? 1 : 0;
+                  
+                  // Check column definition type to coerce strings if needed
+                  const colDef = columns.find(c => c.name === colName);
+                  if (colDef && colDef.type.toLowerCase() === 'boolean') {
+                     if (typeof val === 'string') {
+                        const lower = val.trim().toLowerCase();
+                        val = ['true', 'ya', 'yes', 'y', '1', 'benar'].includes(lower) ? 1 : 0;
+                     } else {
+                        val = val ? 1 : 0;
+                     }
+                  } else if (typeof val === 'boolean') {
+                     val = val ? 1 : 0;
+                  }
+
+                  // Handle Date and DateTime coercion from ISO strings
+                  if (colDef && (colDef.type.toLowerCase() === 'date' || colDef.type.toLowerCase() === 'datetime')) {
+                     if (typeof val === 'string' && val.includes('T')) {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime())) {
+                           const pad = (n: number) => n.toString().padStart(2, '0');
+                           val = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                        }
+                     }
+                  }
+                  
                   return val;
                 });
                 values.push(...rowValues);
@@ -374,7 +401,8 @@ export class MySQLAdapter implements DbInterface {
         } catch (err: any) {
           await connection.rollback();
           await connection.query(`DROP TABLE IF EXISTS \`${stagingTableName}\``);
-          throw new Error(`Import database gagal: tipe data atau nilai pada kolom tidak sesuai. Data dibatalkan.`);
+          console.error("Data Import MySQL Error:", err);
+          throw new Error(`Import database gagal: ${err.message || 'tipe data atau nilai pada kolom tidak sesuai. Data dibatalkan.'}`);
         }
 
         const backupTableName = `_backup_${name}_${timestamp}`;
@@ -475,7 +503,30 @@ export class MySQLAdapter implements DbInterface {
                 const rowValues = colsToInsert.map(colName => {
                   let val = row[colName];
                   if (val === undefined || val === '') return null;
-                  if (typeof val === 'boolean') return val ? 1 : 0;
+                  
+                  const colDef = columns.find(c => c.name === colName);
+                  if (colDef && colDef.type.toLowerCase() === 'boolean') {
+                     if (typeof val === 'string') {
+                        const lower = val.trim().toLowerCase();
+                        val = ['true', 'ya', 'yes', 'y', '1', 'benar'].includes(lower) ? 1 : 0;
+                     } else {
+                        val = val ? 1 : 0;
+                     }
+                  } else if (typeof val === 'boolean') {
+                     val = val ? 1 : 0;
+                  }
+
+                  // Handle Date and DateTime coercion from ISO strings
+                  if (colDef && (colDef.type.toLowerCase() === 'date' || colDef.type.toLowerCase() === 'datetime')) {
+                     if (typeof val === 'string' && val.includes('T')) {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime())) {
+                           const pad = (n: number) => n.toString().padStart(2, '0');
+                           val = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                        }
+                     }
+                  }
+                  
                   return val;
                 });
                 values.push(...rowValues);
@@ -496,7 +547,8 @@ export class MySQLAdapter implements DbInterface {
           
         } catch (err: any) {
           await connection.rollback();
-          throw new Error(`Import database gagal: proses penyimpanan data dibatalkan dan data lama tetap utuh.`);
+          console.error("Data Import MySQL Append Error:", err);
+          throw new Error(`Import database gagal: ${err.message || 'proses penyimpanan data dibatalkan dan data lama tetap utuh.'}`);
         }
       }
 
