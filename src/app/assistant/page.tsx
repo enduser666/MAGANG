@@ -20,7 +20,9 @@ import {
   User,
   Lightbulb,
   Building,
-  Target
+  Target,
+  X,
+  File as FileIcon
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -46,13 +48,10 @@ export default function AIAssistantWorkspace() {
 
   // Conversation history states
   const [historySearch, setHistorySearch] = useState('');
-  const [historyItems, setHistoryItems] = useState([
-    { id: 'h1', title: 'Analisis Temuan Q3', prompt: 'Tampilkan analisis temuan audit pada Triwulan III.' },
-    { id: 'h2', title: 'Executive Summary', prompt: 'Buat executive summary laporan pengawasan internal.' },
-    { id: 'h3', title: 'Temuan Berulang', prompt: 'Unit kerja mana yang memiliki temuan berulang?' },
-    { id: 'h4', title: 'Monitoring TLHP', prompt: 'Ringkas monitoring TLHP bulan ini.' },
-    { id: 'h5', title: 'Risiko Unit Kerja', prompt: 'Unit mana yang memiliki risiko tertinggi?' }
-  ]);
+  const [historyItems, setHistoryItems] = useState<{id: string, title: string, prompt: string}[]>([]);
+
+  // Attached file state
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   // Insight KPIs
   const [kpis, setKpis] = useState({
@@ -78,32 +77,56 @@ export default function AIAssistantWorkspace() {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatFeed]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachedFile(file);
+    e.target.value = '';
+  };
+
   // Handle submit query
   const handleSendQuery = async (queryText: string) => {
-    if (!queryText.trim()) return;
+    if (!queryText.trim() && !attachedFile) return;
 
     // 1. Add user message
     messageCounter.current += 1;
     const userMsgId = 'user-' + messageCounter.current;
+    
+    // Append file name visually in chat if file attached
+    let displayMsg = queryText;
+    if (attachedFile) {
+       displayMsg += (displayMsg ? '\n\n' : '') + `📎 [File dilampirkan: ${attachedFile.name}]`;
+    }
+
     const userMsg: ChatMessage = {
       id: userMsgId,
       sender: 'user',
-      text: queryText
+      text: displayMsg || 'Tolong analisis file ini.'
     };
 
     setChatFeed(prev => [...prev, userMsg]);
     setInputMsg('');
+    const fileToSend = attachedFile; // Store reference to current file
+    setAttachedFile(null); // Clear attachment UI immediately
     setLoading(true);
 
     try {
       const headers = getHeaders();
+      const formData = new FormData();
+      formData.append('message', queryText || 'Tolong analisis file ini.');
+      if (fileToSend) {
+        formData.append('file', fileToSend);
+      }
+
+      // Convert custom headers to headers object (omit Content-Type for FormData, browser sets it)
+      const fetchHeaders: Record<string, string> = { ...headers };
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers
-        },
-        body: JSON.stringify({ message: queryText })
+        headers: fetchHeaders,
+        body: formData
       });
 
       const data = await res.json();
@@ -111,7 +134,7 @@ export default function AIAssistantWorkspace() {
       const botMsg: ChatMessage = {
         id: 'bot-' + messageCounter.current,
         sender: 'assistant',
-        text: data.success ? (data.data || data.response) : `Terjadi kesalahan: ${data.message}`
+        text: data.success ? (data.data || data.response) : `Terjadi kesalahan: ${data.message || data.error}`
       };
 
       setChatFeed(prev => [...prev, botMsg]);
@@ -203,7 +226,7 @@ export default function AIAssistantWorkspace() {
         </div>
 
         {/* CENTER COLUMN: Interactive Chat Area */}
-        <div className="lg:col-span-3 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col min-h-0 overflow-hidden">
+        <div className="lg:col-span-4 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xs flex flex-col min-h-0 overflow-hidden">
           
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
@@ -214,9 +237,6 @@ export default function AIAssistantWorkspace() {
                 <span className="text-[9.5px] text-slate-450 dark:text-slate-400 block mt-0.5">Asisten cerdas untuk analisis data pengawasan dan rekomendasi BPK.</span>
               </div>
             </div>
-            <span className="text-[9px] uppercase font-black tracking-widest text-[#1D4ED8] bg-blue-500/10 px-2 py-0.5 rounded">
-              GEMINI ACTIVE
-            </span>
           </div>
 
           {/* Messages Viewport */}
@@ -260,23 +280,6 @@ export default function AIAssistantWorkspace() {
             <div ref={feedEndRef} />
           </div>
 
-          {/* Suggested Prompts shortcuts */}
-          {chatFeed.length === 1 && !loading && (
-            <div className="p-4 border-t border-slate-100 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-900/10 shrink-0 space-y-2">
-              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block px-1">Pertanyaan yang Disarankan:</span>
-              <div className="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto pr-1">
-                {suggestedPrompts.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendQuery(p)}
-                    className="text-[10.5px] font-bold text-slate-650 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-[#1D4ED8] px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Chat input bar */}
           <form
@@ -284,99 +287,70 @@ export default function AIAssistantWorkspace() {
               e.preventDefault();
               handleSendQuery(inputMsg);
             }}
-            className="p-4 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] flex gap-2.5 shrink-0"
+            className="p-4 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col shrink-0"
           >
-            <button
-              type="button"
-              className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 transition-all cursor-pointer flex items-center justify-center shrink-0"
-              title="Attach File"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
-            <input
-              type="text"
-              value={inputMsg}
-              onChange={(e) => setInputMsg(e.target.value)}
-              placeholder="Tanyakan analisis data SIDATA..."
-              className="flex-1 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8]"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg transition-all shadow-md shadow-blue-500/10 flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0"
-            >
-              <Send className="h-4.5 w-4.5" />
-            </button>
+            {attachedFile && (
+              <div className="mb-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-[#1D4ED8] dark:text-blue-300 p-2 rounded-lg border border-blue-200 dark:border-blue-800/50 w-fit">
+                <FileIcon className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold truncate max-w-[200px]">{attachedFile.name}</span>
+                <span className="text-[10px] opacity-70">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  className="ml-2 hover:bg-blue-100 dark:hover:bg-blue-900/40 p-1 rounded-full cursor-pointer"
+                  title="Remove file"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+            
+            <div className="flex gap-2.5 w-full">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                title="Attach File (PDF, DOCX, XLSX, CSV, TXT)"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".txt,.csv,.json,.md,.pdf,.docx,.xlsx"
+              />
+              <textarea
+                value={inputMsg}
+                onChange={(e) => setInputMsg(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!loading) {
+                      handleSendQuery(inputMsg);
+                    }
+                  }
+                }}
+                placeholder="Tanyakan analisis data SIDATA... (Shift+Enter untuk baris baru)"
+                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] resize-none overflow-y-auto"
+                rows={Math.min(5, Math.max(1, inputMsg.split('\n').length))}
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg transition-all shadow-md shadow-blue-500/10 flex items-center justify-center cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <Send className="h-4.5 w-4.5" />
+              </button>
+            </div>
+            <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 font-medium">
+              Asisten AI SIDATA dapat membuat kesalahan. Harap periksa kembali informasi yang dihasilkan.
+            </p>
           </form>
         </div>
 
-        {/* RIGHT COLUMN: Insight Panel & KPI Cards */}
-        <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col gap-3 min-h-0 overflow-y-auto shadow-xs">
-          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block border-b border-slate-100 dark:border-slate-850 pb-2">
-            Insight Panel (KPI Pengawasan)
-          </span>
 
-          {/* KPI 1 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Total Rekomendasi BPK</span>
-              <Target className="h-4 w-4 text-blue-500" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.totalRec}</p>
-            <span className="text-[8px] text-slate-405 font-bold">Terintegrasi di sistem</span>
-          </div>
-
-          {/* KPI 2 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Belum Selesai (Outstanding)</span>
-              <AlertOctagon className="h-4 w-4 text-amber-500" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.outstandingRec}</p>
-            <span className="text-[8px] text-amber-600 font-bold">Perlu eskalasi tindak lanjut</span>
-          </div>
-
-          {/* KPI 3 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Tindak Lanjut Aktif (TLHP)</span>
-              <Clock className="h-4 w-4 text-indigo-500" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.activeTlhp}</p>
-            <span className="text-[8px] text-indigo-600 font-bold">Sedang proses penyelesaian</span>
-          </div>
-
-          {/* KPI 4 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Persentase Penyelesaian</span>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.completionRate}</p>
-            <span className="text-[8px] text-emerald-600 font-bold">Memenuhi SLA pengawasan</span>
-          </div>
-
-          {/* KPI 5 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Unit Kerja Kerawanan Tinggi</span>
-              <Building className="h-4 w-4 text-[#1D4ED8]" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.highRiskUnits}</p>
-            <span className="text-[8px] text-slate-405 font-bold">Fokus mitigasi utama</span>
-          </div>
-
-          {/* KPI 6 */}
-          <div className="rounded-lg border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-900/30 p-3 space-y-1">
-            <div className="flex items-center justify-between text-slate-450">
-              <span className="text-[8.5px] font-extrabold uppercase">Kasus Terlambat (Overdue)</span>
-              <AlertOctagon className="h-4 w-4 text-red-500 animate-pulse" />
-            </div>
-            <p className="text-base font-black text-slate-900 dark:text-white">{kpis.overdueCases}</p>
-            <span className="text-[8px] text-red-650 font-bold">Melewati tenggat SLA</span>
-          </div>
-
-        </div>
 
       </div>
 
