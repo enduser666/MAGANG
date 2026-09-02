@@ -218,22 +218,13 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
 
   const navigationGroups: NavigationGroup[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-    {
-      id: 'monitoring-tl',
-      label: 'Monitoring TL',
-      icon: Activity,
-      children: [
-        { name: 'Monitoring Rekomendasi BPK', href: '/rekomendasi', icon: FileCheck },
-        // { name: 'Monitoring TLHP', href: '/tlhp', icon: ClipboardCheck }, // Diarsipkan sementara (sewaktu-waktu bisa ditampilkan lagi)
-      ]
-    },
+    { id: 'rekomendasi', label: 'Monitoring Rekomendasi BPK', icon: FileCheck, href: '/rekomendasi' },
     {
       id: 'input-data',
       label: 'Input Data',
       icon: Database,
       children: [
         { name: 'Integrasi Data', href: '/import', icon: UploadCloud, roles: ['ADMIN_PUSAT'] },
-        { name: 'Update TL', href: '/reports', icon: FileText, roles: ['ADMIN_PUSAT', 'EDITOR_UNIT'] },
         { name: 'Update Data', href: '/data-pemantauan', icon: Database, roles: ['ADMIN_PUSAT', 'ADMIN_UNIT', 'EDITOR_UNIT'] },
       ]
     },
@@ -246,6 +237,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         { name: 'IKU', href: '/iku', icon: Target },
         { name: 'Early Warning System', href: '/ews', icon: AlertOctagon },
         { name: 'Asisten AI SIDATA', href: '/assistant', icon: Brain },
+        { name: 'Report', href: '/reports', icon: FileText, roles: ['ADMIN_PUSAT', 'EDITOR_UNIT'] },
       ]
     },
     {
