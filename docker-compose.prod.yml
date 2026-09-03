@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DATABASE_URL=mysql://${DB_USER:-root}:${DB_PASSWORD:-password}@mysql:3306/${DB_NAME:-data_migration}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    env_file:
+      - .env
+    environment:
+      - MYSQL_ROOT_PASSWORD=change_root_password
+      - MYSQL_DATABASE=${DB_NAME:-data_migration}
+      - MYSQL_USER=${DB_USER:-sidata}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-change_me}
+    volumes:
+      - mysql-data-prod:/var/lib/mysql
+      # Mount init directory for custom SQL dumps
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pchange_root_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mysql-data-prod:

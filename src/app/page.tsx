@@ -139,7 +139,7 @@ export default function Dashboard() {
              if (d.dynamicStatuses) {
                // Add colors to dynamic statuses based on the screenshot
                const colorMap: Record<string, string> = {
-                 'Belum Tindaklanjut': '#eaff00ff', // blue
+                 'Belum Tindaklanjut': '#ff0400ff', // blue
                  'Dalam Proses': '#fca801ff', // green
                  'Diusulkan Sesuai': '#042cf7ff', // red
                  'Diusulkan TPTD': '#0bf5e2ff', // orange

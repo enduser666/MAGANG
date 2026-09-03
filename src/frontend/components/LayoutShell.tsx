@@ -234,8 +234,8 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       icon: BarChart3,
       children: [
         { name: 'Monitoring & Analisis', href: '/monitoring-analisis', icon: BarChart3 },
-        { name: 'IKU', href: '/iku', icon: Target },
-        { name: 'Early Warning System', href: '/ews', icon: AlertOctagon },
+        // { name: 'IKU', href: '/iku', icon: Target },
+        // { name: 'Early Warning System', href: '/ews', icon: AlertOctagon },
         { name: 'Asisten AI SIDATA', href: '/assistant', icon: Brain },
         { name: 'Report', href: '/reports', icon: FileText, roles: ['ADMIN_PUSAT', 'EDITOR_UNIT'] },
       ]

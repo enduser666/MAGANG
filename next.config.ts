@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  // @ts-expect-error Next.js types might not include these properties yet
   serverActions: {
     allowedOrigins: ['localhost:3000', '*.ngrok-free.dev', '*.ngrok.app', '*.ngrok.io'],
   },
   // Izinkan request HMR/WebSocket Next.js selama di akses via ngrok
-  allowedDevOrigins: ['crazy-abstain-early.ngrok-free.dev', 'localhost:3000'],
+  allowedDevOrigins: ['*.ngrok-free.dev', 'localhost:3000'],
   async headers() {
     return [
       {
