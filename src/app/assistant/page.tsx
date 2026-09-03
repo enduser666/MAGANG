@@ -378,7 +378,7 @@ export default function AIAssistantWorkspace() {
             <div className="flex items-end gap-2">
               <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.xlsx,.xls,.csv,image/*,.docx,.txt" onChange={(e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]); }} />
               <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-slate-600 border dark:border-slate-800 rounded-lg cursor-pointer bg-slate-50 dark:bg-slate-900 transition-colors" title="Lampirkan File"><Paperclip className="h-4 w-4"/></button>
-              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen... (Shift+Enter untuk baris baru)" className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" style={{ resize: 'none' }} />
+              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen..." className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" style={{ resize: 'none' }} />
               {loading ? (
                 <button onClick={handleStopGeneration} className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-lg cursor-pointer shadow-md transition-colors" title="Hentikan Response"><StopCircle className="h-4.5 w-4.5"/></button>
               ) : (
