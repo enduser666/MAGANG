@@ -20,7 +20,7 @@ pipeline {
                     // Pastikan file .env tersedia. Di Jenkins, lebih aman menggunakan 'Credentials Binding'
                     // Untuk contoh ini, kita asumsikan file .env sudah di-inject atau di-copy dari secret Jenkins
                     echo "Checking .env file..."
-                    sh 'cp .env.production.example .env' // Ganti dengan logika injeksi secret yang sebenarnya nanti
+                    bat 'copy .env.production.example .env' // Ganti dengan logika injeksi secret yang sebenarnya nanti
                 }
             }
         }
@@ -29,7 +29,7 @@ pipeline {
             steps {
                 // Mem-build image menggunakan docker-compose
                 echo "Building application images..."
-                sh "docker-compose -f ${COMPOSE_FILE} build"
+                bat "docker-compose -f ${COMPOSE_FILE} build"
             }
         }
 
@@ -37,7 +37,7 @@ pipeline {
             steps {
                 // Menjalankan container di background (-d)
                 echo "Deploying application..."
-                sh "docker-compose -f ${COMPOSE_FILE} up -d"
+                bat "docker-compose -f ${COMPOSE_FILE} up -d"
             }
         }
 
@@ -45,7 +45,7 @@ pipeline {
             steps {
                 // Membersihkan image lama yang tidak terpakai agar server tidak penuh
                 echo "Cleaning up dangling images..."
-                sh "docker image prune -f"
+                bat "docker image prune -f"
             }
         }
     }
