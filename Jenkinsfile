@@ -5,6 +5,7 @@ pipeline {
         // Mendefinisikan environment variables jika diperlukan
         COMPOSE_FILE = 'docker-compose.prod.yml'
         DOCKER_HOST = 'tcp://localhost:2375'
+        DOCKER_COMPOSE = 'C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker-compose.exe'
     }
 
     stages {
@@ -30,7 +31,7 @@ pipeline {
             steps {
                 // Mem-build image menggunakan docker-compose
                 echo "Building application images..."
-                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" compose -f ${COMPOSE_FILE} build'
+                bat "\"%DOCKER_COMPOSE%\" -f ${COMPOSE_FILE} build"
             }
         }
 
@@ -38,7 +39,7 @@ pipeline {
             steps {
                 // Menjalankan container di background (-d)
                 echo "Deploying application..."
-                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" compose -f ${COMPOSE_FILE} up -d'
+                bat "\"%DOCKER_COMPOSE%\" -f ${COMPOSE_FILE} up -d"
             }
         }
 
@@ -46,7 +47,7 @@ pipeline {
             steps {
                 // Membersihkan image lama yang tidak terpakai agar server tidak penuh
                 echo "Cleaning up dangling images..."
-                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" image prune -f'
+                bat "\"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe\" image prune -f"
             }
         }
     }
