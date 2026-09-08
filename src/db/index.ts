@@ -1,18 +1,6 @@
 import { DbInterface } from './types';
 import { MySQLAdapter } from './adapters/MySQLAdapter';
-import { PrismaClient } from '../generated/prisma/client';
 import { config } from '../backend/lib/config';
-
-// Global cache untuk PrismaClient per koneksi (hanya digunakan oleh PostgreSQL client)
-const globalForPrisma = globalThis as unknown as {
-  prismaClientsCache: Map<string, PrismaClient>;
-};
-
-const prismaClientsCache = globalForPrisma.prismaClientsCache || new Map<string, PrismaClient>();
-
-if (config.nodeEnv !== 'production') {
-  globalForPrisma.prismaClientsCache = prismaClientsCache;
-}
 
 // Global singleton untuk MySQL adapter
 const globalForDb = globalThis as unknown as {
