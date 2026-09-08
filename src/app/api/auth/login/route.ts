@@ -75,7 +75,7 @@ export const POST = withRequestContext(async (request: Request) => {
     }, 'Sesi masuk berhasil dibuat');
 
     response.cookies.set('session_token', token, {
-      httpOnly: false,
+      httpOnly: true,
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/'
     });

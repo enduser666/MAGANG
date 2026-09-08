@@ -1,3 +1,4 @@
+// Force Turbopack Cache Invalidation
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken, ROLE_PERMISSIONS } from '@/backend/lib/auth';

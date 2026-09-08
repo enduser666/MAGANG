@@ -2,13 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['pdf-parse', 'tesseract.js', 'pdfjs-dist'],
+  output: 'standalone',
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', '*.ngrok-free.dev', '*.ngrok.app', '*.ngrok.io'],
     },
   },
-  // Izinkan request HMR/WebSocket Next.js selama di akses via ngrok
-  // allowedDevOrigins: ['crazy-abstain-early.ngrok-free.dev', 'localhost:3000'],
   async headers() {
     return [
       {
