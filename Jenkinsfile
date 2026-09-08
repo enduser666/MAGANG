@@ -20,7 +20,7 @@ pipeline {
                     // Pastikan file .env tersedia. Di Jenkins, lebih aman menggunakan 'Credentials Binding'
                     // Untuk contoh ini, kita asumsikan file .env sudah di-inject atau di-copy dari secret Jenkins
                     echo "Checking .env file..."
-                    bat 'copy .env.production.example .env' // Ganti dengan logika injeksi secret yang sebenarnya nanti
+                    bat 'copy .env.docker.example .env' // Ganti dengan logika injeksi secret yang sebenarnya nanti
                 }
             }
         }
