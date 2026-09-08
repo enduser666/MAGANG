@@ -910,6 +910,24 @@ export function createSandboxClient(dbType: string, dbConfigBase64: string | nul
       }
     },
 
+    roles: {
+      async findMany() {
+        const db = readSandbox();
+        return db.system.roles || [];
+      },
+      async updateMatrix(roleId: string, permissions: any[]) {
+        const db = readSandbox();
+        if (!db.system.roles) db.system.roles = [];
+        const idx = db.system.roles.findIndex((r: any) => r.id === roleId);
+        if (idx !== -1) {
+          db.system.roles[idx].permissions = permissions;
+          writeSandbox(db);
+          return true;
+        }
+        return false;
+      }
+    },
+
     permissions: {
       async findMany(datasetId: string) {
         const db = readSandbox();

@@ -20,6 +20,7 @@ export interface SandboxSystem {
   relationships: any[];
   views: any[];
   permissions: any[];
+  roles: any[];
 }
 
 export interface SandboxData {
@@ -51,7 +52,8 @@ function getInitialSystem(): SandboxSystem {
     datasets: [],
     relationships: [],
     views: [],
-    permissions: []
+    permissions: [],
+    roles: []
   };
 }
 
@@ -71,6 +73,7 @@ function ensureSystemFields(system: SandboxSystem): void {
   if (!system.relationships) system.relationships = [];
   if (!system.views) system.views = [];
   if (!system.permissions) system.permissions = [];
+  if (!system.roles) system.roles = [];
   if (system.workspaces.length === 0) {
     system.workspaces.push({ id: 'default', name: 'Default Workspace', createdAt: new Date().toISOString() });
   }
@@ -113,7 +116,8 @@ export function readSandbox(): SandboxData {
         datasets: [],
         relationships: [],
         views: [],
-        permissions: []
+        permissions: [],
+        roles: []
       },
       tables: {}
     };
