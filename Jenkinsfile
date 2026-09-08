@@ -30,7 +30,7 @@ pipeline {
             steps {
                 // Mem-build image menggunakan docker-compose
                 echo "Building application images..."
-                bat "docker compose -f ${COMPOSE_FILE} build"
+                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" compose -f ${COMPOSE_FILE} build'
             }
         }
 
@@ -38,7 +38,7 @@ pipeline {
             steps {
                 // Menjalankan container di background (-d)
                 echo "Deploying application..."
-                bat "docker compose -f ${COMPOSE_FILE} up -d"
+                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" compose -f ${COMPOSE_FILE} up -d'
             }
         }
 
@@ -46,7 +46,7 @@ pipeline {
             steps {
                 // Membersihkan image lama yang tidak terpakai agar server tidak penuh
                 echo "Cleaning up dangling images..."
-                bat "docker image prune -f"
+                bat '"C:\\Users\\HP\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" image prune -f'
             }
         }
     }
