@@ -29,7 +29,7 @@ pipeline {
             steps {
                 // Mem-build image menggunakan docker-compose
                 echo "Building application images..."
-                bat "docker-compose -f ${COMPOSE_FILE} build"
+                bat "docker compose -f ${COMPOSE_FILE} build"
             }
         }
 
@@ -37,7 +37,7 @@ pipeline {
             steps {
                 // Menjalankan container di background (-d)
                 echo "Deploying application..."
-                bat "docker-compose -f ${COMPOSE_FILE} up -d"
+                bat "docker compose -f ${COMPOSE_FILE} up -d"
             }
         }
 
