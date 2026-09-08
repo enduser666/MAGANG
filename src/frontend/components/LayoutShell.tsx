@@ -908,7 +908,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs divide-y divide-slate-100 dark:divide-slate-800">
               {activities.length === 0 ? (
-                <p className="text-slate-400 italic text-center py-10">Belum ada aktivitas kolaborasi tercatat.</p>
+                <p className="text-slate-400 italic text-center py-10">Belum ada aktivitas tercatat di sistem</p>
               ) : (
                 activities.map((act) => (
                   <div key={act.id} className="relative pl-5 py-3 first:pt-0">

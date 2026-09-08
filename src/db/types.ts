@@ -116,7 +116,11 @@ export interface DbInterface {
   pipelineJobs: {
     findMany(): Promise<any[]>;
     create(data: any): Promise<any>;
-    updateStatus(id: number, status: string, durationMs?: number): Promise<any>;
+    updateStatus(id: any, status: string, durationMs?: number): Promise<any>;
+  };
+  roles: {
+    findMany(): Promise<any[]>;
+    updateMatrix(roleId: string, permissions: any[]): Promise<boolean>;
   };
   presenceLocks: {
     findMany(): Promise<any[]>;

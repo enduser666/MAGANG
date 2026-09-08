@@ -2,7 +2,6 @@ import { DbInterface } from './types';
 import { MySQLAdapter } from './adapters/MySQLAdapter';
 import { PrismaClient } from '../generated/prisma/client';
 import { config } from '../backend/lib/config';
-import { createSandboxClient } from './sandbox-client';
 
 // Global cache untuk PrismaClient per koneksi (hanya digunakan oleh PostgreSQL client)
 const globalForPrisma = globalThis as unknown as {
@@ -33,24 +32,10 @@ export function getDbClient(
   dbConfigBase64: string | null,
   forceSandbox = false
 ): DbInterface {
-  const driver = process.env.DB_DRIVER || 'sandbox';
-  const isTestEnv = process.env.NODE_ENV === 'test';
-
-  // MySQL mode
-  if (driver === 'mysql' && !forceSandbox && !isTestEnv) {
-    if (!globalForDb.mysqlAdapterInstance) {
-      globalForDb.mysqlAdapterInstance = new MySQLAdapter();
-    }
-    return globalForDb.mysqlAdapterInstance;
+  if (!globalForDb.mysqlAdapterInstance) {
+    globalForDb.mysqlAdapterInstance = new MySQLAdapter();
   }
-
-  // Sandbox mode (fallback & testing)
-  if (dbType === 'sandbox' || !dbConfigBase64 || forceSandbox || isTestEnv) {
-    return createSandboxClient(dbType, dbConfigBase64);
-  }
-
-  // PostgreSQL mode removed, fallback to sandbox
-  return createSandboxClient(dbType, dbConfigBase64);
+  return globalForDb.mysqlAdapterInstance;
 }
 
 // Re-export tipe & interface agar konsumen bisa import dari 'src/db'

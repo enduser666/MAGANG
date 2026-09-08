@@ -141,8 +141,8 @@ export default function Dashboard() {
                const colorMap: Record<string, string> = {
                  'Belum Tindaklanjut': '#ff0400ff', // blue
                  'Dalam Proses': '#fca801ff', // green
-                 'Diusulkan Sesuai': '#042cf7ff', // red
-                 'Diusulkan TPTD': '#0bf5e2ff', // orange
+                 'Diusulkan Sesuai': '#05fca9ff', // red
+                 'Diusulkan TPTD': '#004cffff', // orange
                  'Sesuai': '#00f800ff', // purple
                  'TPTD': '#fc04ebff', // pink
                };
@@ -227,8 +227,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 1. KPI Cards list */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Empty State Fallback */}
+      {tablesList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+            <Activity className="h-8 w-8 text-slate-400" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Dasbor kosong, silakan tambahkan widget atau dataset</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md text-center">
+            Sistem belum mendeteksi adanya data visualisasi atau widget yang aktif untuk unit Anda. Silakan impor dataset atau integrasikan sumber data melalui halaman Integrasi Data.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* 1. KPI Cards list */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Jumlah LHP */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-xs relative overflow-hidden group">
@@ -372,6 +385,8 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

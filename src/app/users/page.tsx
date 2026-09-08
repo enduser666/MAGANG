@@ -28,52 +28,86 @@ interface SystemRole {
 const defaultSystemRoles: SystemRole[] = [
   {
     name: 'Administrator',
-    desc: 'Full systemic control',
+    desc: 'Super Administrator',
     permissions: {
-      'System Configurations': { read: true, write: true, delete: true, execute: true },
-      'User Management': { read: true, write: true, delete: true, execute: false },
-      'Audit Logs': { read: true, write: false, delete: false, execute: true },
-      'Data Integration Pipelines': { read: true, write: true, delete: false, execute: true }
+      'Dashboard': { read: true, write: true, delete: true, execute: true },
+      'Monitoring Rekomendasi BPK': { read: true, write: true, delete: true, execute: true },
+      'Monitoring TLHP': { read: true, write: true, delete: true, execute: true },
+      'Integrasi Data': { read: true, write: true, delete: true, execute: true },
+      'Update TL': { read: true, write: true, delete: true, execute: true },
+      'Data Pemantauan': { read: true, write: true, delete: true, execute: true },
+      'Monitoring & Analisis': { read: true, write: true, delete: true, execute: true },
+      'IKU': { read: true, write: true, delete: true, execute: true },
+      'Early Warning System': { read: true, write: true, delete: true, execute: true },
+      'Asisten AI SIDATA': { read: true, write: true, delete: true, execute: true },
+      'Data Governance': { read: true, write: true, delete: true, execute: true },
+      'Log Audit': { read: true, write: true, delete: true, execute: true },
+      'Manajemen Pengguna': { read: true, write: true, delete: true, execute: true },
+      'Repositori': { read: true, write: true, delete: true, execute: true },
+      'Profile': { read: true, write: true, delete: true, execute: true }
     }
   },
   {
-    name: 'Auditor',
-    desc: 'Read-only oversight',
+    name: 'Admin',
+    desc: 'Admin Level',
     permissions: {
-      'System Configurations': { read: true, write: false, delete: false, execute: false },
-      'User Management': { read: true, write: false, delete: false, execute: false },
-      'Audit Logs': { read: true, write: false, delete: false, execute: true },
-      'Data Integration Pipelines': { read: true, write: false, delete: false, execute: true }
+      'Dashboard': { read: true, write: true, delete: false, execute: true },
+      'Monitoring Rekomendasi BPK': { read: true, write: true, delete: false, execute: true },
+      'Monitoring TLHP': { read: true, write: true, delete: false, execute: true },
+      'Integrasi Data': { read: true, write: true, delete: false, execute: true },
+      'Update TL': { read: false, write: false, delete: false, execute: false },
+      'Data Pemantauan': { read: true, write: true, delete: false, execute: true },
+      'Monitoring & Analisis': { read: true, write: true, delete: false, execute: true },
+      'IKU': { read: true, write: true, delete: false, execute: true },
+      'Early Warning System': { read: true, write: true, delete: false, execute: true },
+      'Asisten AI SIDATA': { read: true, write: true, delete: false, execute: true },
+      'Data Governance': { read: true, write: true, delete: false, execute: true },
+      'Log Audit': { read: true, write: true, delete: false, execute: true },
+      'Manajemen Pengguna': { read: true, write: true, delete: false, execute: true },
+      'Repositori': { read: true, write: true, delete: false, execute: true },
+      'Profile': { read: true, write: true, delete: false, execute: true }
     }
   },
   {
-    name: 'Data Analyst',
-    desc: 'Query & Reporting',
+    name: 'Inputer',
+    desc: 'Data Inputer',
     permissions: {
-      'System Configurations': { read: true, write: false, delete: false, execute: false },
-      'User Management': { read: false, write: false, delete: false, execute: false },
-      'Audit Logs': { read: true, write: false, delete: false, execute: false },
-      'Data Integration Pipelines': { read: true, write: true, delete: false, execute: true }
-    }
-  },
-  {
-    name: 'Pimpinan',
-    desc: 'Executive Dashboards',
-    permissions: {
-      'System Configurations': { read: true, write: false, delete: false, execute: false },
-      'User Management': { read: false, write: false, delete: false, execute: false },
-      'Audit Logs': { read: true, write: false, delete: false, execute: false },
-      'Data Integration Pipelines': { read: true, write: false, delete: false, execute: false }
+      'Dashboard': { read: true, write: true, delete: false, execute: true },
+      'Monitoring Rekomendasi BPK': { read: true, write: true, delete: false, execute: true },
+      'Monitoring TLHP': { read: true, write: true, delete: false, execute: true },
+      'Integrasi Data': { read: true, write: true, delete: false, execute: true },
+      'Update TL': { read: false, write: false, delete: false, execute: false },
+      'Data Pemantauan': { read: true, write: true, delete: false, execute: true },
+      'Monitoring & Analisis': { read: true, write: true, delete: false, execute: true },
+      'IKU': { read: true, write: true, delete: false, execute: true },
+      'Early Warning System': { read: true, write: true, delete: false, execute: true },
+      'Asisten AI SIDATA': { read: true, write: true, delete: false, execute: true },
+      'Data Governance': { read: false, write: false, delete: false, execute: false },
+      'Log Audit': { read: false, write: false, delete: false, execute: false },
+      'Manajemen Pengguna': { read: false, write: false, delete: false, execute: false },
+      'Repositori': { read: true, write: true, delete: false, execute: true },
+      'Profile': { read: true, write: true, delete: false, execute: true }
     }
   },
   {
     name: 'Viewer',
     desc: 'Basic restricted access',
     permissions: {
-      'System Configurations': { read: false, write: false, delete: false, execute: false },
-      'User Management': { read: false, write: false, delete: false, execute: false },
-      'Audit Logs': { read: false, write: false, delete: false, execute: false },
-      'Data Integration Pipelines': { read: true, write: false, delete: false, execute: false }
+      'Dashboard': { read: true, write: false, delete: false, execute: true },
+      'Monitoring Rekomendasi BPK': { read: true, write: false, delete: false, execute: true },
+      'Monitoring TLHP': { read: true, write: false, delete: false, execute: true },
+      'Integrasi Data': { read: false, write: false, delete: false, execute: false },
+      'Update TL': { read: false, write: false, delete: false, execute: false },
+      'Data Pemantauan': { read: false, write: false, delete: false, execute: false },
+      'Monitoring & Analisis': { read: true, write: false, delete: false, execute: true },
+      'IKU': { read: true, write: false, delete: false, execute: true },
+      'Early Warning System': { read: true, write: false, delete: false, execute: true },
+      'Asisten AI SIDATA': { read: true, write: false, delete: false, execute: true },
+      'Data Governance': { read: false, write: false, delete: false, execute: false },
+      'Log Audit': { read: false, write: false, delete: false, execute: false },
+      'Manajemen Pengguna': { read: false, write: false, delete: false, execute: false },
+      'Repositori': { read: true, write: false, delete: false, execute: true },
+      'Profile': { read: true, write: true, delete: false, execute: true }
     }
   }
 ];
@@ -125,19 +159,45 @@ export default function UserAccessManagement() {
   // Edit / Role update states
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
 
-  // System roles matrix state with localStorage persistence
+  // System roles matrix state from API
   const [rolesMatrix, setRolesMatrix] = useState<SystemRole[]>(defaultSystemRoles);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('sidata_system_roles_matrix');
-    if (saved) {
-      try {
-        setRolesMatrix(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse saved roles matrix configuration:', e);
+  const fetchRoles = async () => {
+    try {
+      const headers = getHeaders();
+      const res = await fetch('/api/roles', { headers });
+      const data = await res.json();
+      if (data.success && data.data && data.data.matrix) {
+        const uiRoles: SystemRole[] = [
+          { name: 'Administrator', desc: 'Super Administrator', permissions: {} },
+          { name: 'Admin', desc: 'Admin Level', permissions: {} },
+          { name: 'Inputer', desc: 'Data Inputer', permissions: {} },
+          { name: 'Viewer', desc: 'Basic restricted access', permissions: {} }
+        ];
+
+        const baseAreas = Object.keys(defaultSystemRoles[0].permissions);
+
+        for (const role of uiRoles) {
+           for (const area of baseAreas) {
+              const apiArea = data.data.matrix.find((m: any) => m.featureArea === area);
+              if (apiArea && apiArea.roles && apiArea.roles[role.name]) {
+                 role.permissions[area] = apiArea.roles[role.name];
+              } else {
+                 role.permissions[area] = { read: false, write: false, delete: false, execute: false };
+                 if (role.name === 'Administrator') role.permissions[area] = { read: true, write: true, delete: true, execute: true };
+              }
+           }
+        }
+        setRolesMatrix(uiRoles);
       }
+    } catch (e) {
+      console.error('Failed to fetch roles configuration:', e);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, [dbType, connectionStatus]);
 
 
   const fetchUsers = async () => {
@@ -352,9 +412,33 @@ export default function UserAccessManagement() {
     }));
   };
 
-  const handleSavePermissions = () => {
-    localStorage.setItem('sidata_system_roles_matrix', JSON.stringify(rolesMatrix));
-    showToast(`Izin akses untuk peran ${activeRole} berhasil disimpan!`, 'success');
+  const handleSavePermissions = async () => {
+    const activeRoleData = rolesMatrix.find(r => r.name === activeRole);
+    if (!activeRoleData) return;
+
+    const permissionsArray = Object.entries(activeRoleData.permissions).map(([area, perms]) => ({
+       featureArea: area,
+       ...perms
+    }));
+
+    try {
+       const res = await fetch('/api/roles', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getHeaders() },
+          body: JSON.stringify({
+             roleName: activeRoleData.name,
+             permissions: permissionsArray
+          })
+       });
+       const data = await res.json();
+       if (data.success) {
+          showToast(`Izin akses untuk peran ${activeRole} berhasil disimpan ke database!`, 'success');
+       } else {
+          showToast(`Gagal menyimpan: ${data.message}`, 'error');
+       }
+    } catch (e) {
+       showToast('Terjadi kesalahan jaringan', 'error');
+    }
   };
 
   const getActiveRolePermissions = () => {
@@ -580,9 +664,8 @@ export default function UserAccessManagement() {
                           className="bg-transparent border-0 font-bold text-[#1D4ED8] focus:ring-0 focus:outline-none cursor-pointer pr-5 py-0.5 rounded text-xs"
                         >
                           <option value="Administrator">Administrator</option>
-                          <option value="Auditor">Auditor</option>
-                          <option value="Data Analyst">Data Analyst</option>
-                          <option value="Pimpinan">Pimpinan</option>
+                          <option value="Admin">Admin</option>
+                          <option value="Inputer">Inputer</option>
                           <option value="Viewer">Viewer</option>
                         </select>
                       )}
@@ -764,9 +847,8 @@ export default function UserAccessManagement() {
                     className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] font-bold"
                   >
                     <option value="Administrator">Administrator</option>
-                    <option value="Auditor">Auditor</option>
-                    <option value="Data Analyst">Data Analyst</option>
-                    <option value="Pimpinan">Pimpinan</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Inputer">Inputer</option>
                     <option value="Viewer">Viewer</option>
                   </select>
                 </div>
@@ -897,9 +979,8 @@ export default function UserAccessManagement() {
                     className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] font-bold"
                   >
                     <option value="Administrator">Administrator</option>
-                    <option value="Auditor">Auditor</option>
-                    <option value="Data Analyst">Data Analyst</option>
-                    <option value="Pimpinan">Pimpinan</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Inputer">Inputer</option>
                     <option value="Viewer">Viewer</option>
                   </select>
                 </div>

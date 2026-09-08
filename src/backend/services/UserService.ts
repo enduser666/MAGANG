@@ -1,12 +1,17 @@
 import { UserRepository } from '@/repositories/UserRepository';
 import { AuditRepository } from '@/repositories/AuditRepository';
 import { hashPassword } from '@/backend/lib/auth';
+import { getDbClient } from '@/db';
 
 export class UserService {
   private userRepo: UserRepository;
   private auditRepo: AuditRepository;
+  private dbType: string;
+  private dbConfig: string | null;
 
   constructor(dbType: string = 'sandbox', dbConfig: string | null = null) {
+    this.dbType = dbType;
+    this.dbConfig = dbConfig;
     this.userRepo = new UserRepository(dbType, dbConfig);
     this.auditRepo = new AuditRepository(dbType, dbConfig);
   }
@@ -49,6 +54,21 @@ export class UserService {
       details: `Administrator created user account: "${newUser.username}" (${newUser.role})`,
       user: 'Administrator'
     });
+
+    // Write to Activity Feed
+    try {
+      const db = getDbClient(this.dbType, this.dbConfig);
+      await db.activityFeed.create({
+        actorUsername: 'admin',
+        actorFullName: 'Administrator',
+        eventType: 'USER_CREATED',
+        targetTable: 'sys_users',
+        targetId: 0,
+        description: `Admin menambahkan pengguna baru: ${newUser.username}`
+      });
+    } catch (err) {
+      console.error('Failed to log activity for user creation', err);
+    }
 
     return newUser;
   }
@@ -95,6 +115,21 @@ export class UserService {
       details: `Administrator deleted user account with ID: ${userId}`,
       user: 'Administrator'
     });
+
+    // Write to Activity Feed
+    try {
+      const db = getDbClient(this.dbType, this.dbConfig);
+      await db.activityFeed.create({
+        actorUsername: 'admin',
+        actorFullName: 'Administrator',
+        eventType: 'USER_DELETED',
+        targetTable: 'sys_users',
+        targetId: userId,
+        description: `Admin menghapus pengguna dengan ID: ${userId}`
+      });
+    } catch (err) {
+      console.error('Failed to log activity for user deletion', err);
+    }
 
     return true;
   }

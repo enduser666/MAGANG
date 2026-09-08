@@ -99,8 +99,16 @@ export const POST = withAuth(async (request, user) => {
 
       const formattedName = tableName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
       let tableCreated = false;
+      let pipelineJobId: string | null = null;
 
       try {
+        // Create initial pipeline job with RUNNING status
+        const job = await db.pipelineJobs.create({
+          jobName: `Ingestion: ${tableName}`,
+          status: 'RUNNING'
+        });
+        pipelineJobId = job.id;
+
         // Execute dynamic migration
         console.log('[MIGRATE-DIAG] calling createDynamicTable | tableName:', tableName, '| rows:', sanitizedRecords.length, '| importMode:', importMode || 'overwrite');
         await db.createDynamicTable(
@@ -157,12 +165,10 @@ export const POST = withAuth(async (request, user) => {
           user: creator,
         });
 
-        // Create pipeline logs for pipeline status
-        await db.pipelineJobs.create({
-          jobName: `Ingestion: ${tableName}`,
-          status: 'SUCCESS',
-          durationMs: 1500
-        });
+        // Update pipeline log status to SUCCESS
+        if (pipelineJobId) {
+           await db.pipelineJobs.updateStatus(pipelineJobId, 'SUCCESS');
+        }
 
         return ApiResponse.success({
           migrated: records.length,
@@ -172,6 +178,12 @@ export const POST = withAuth(async (request, user) => {
 
       } catch (err: any) {
         console.error('Migration failed, executing transaction rollback:', err);
+        
+        // Update pipeline job status to FAILED
+        if (pipelineJobId) {
+           await db.pipelineJobs.updateStatus(pipelineJobId, 'FAILED');
+        }
+
         if (tableCreated) {
           try {
             await db.deleteDynamicTable(tableName);
