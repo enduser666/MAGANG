@@ -4,6 +4,7 @@ pipeline {
     environment {
         // Mendefinisikan environment variables jika diperlukan
         COMPOSE_FILE = 'docker-compose.prod.yml'
+        DOCKER_HOST = 'tcp://localhost:2375'
     }
 
     stages {
