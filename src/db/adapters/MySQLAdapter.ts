@@ -897,6 +897,30 @@ export class MySQLAdapter implements DbInterface {
   async initializeSchema(): Promise<{ success: boolean; message: string }> {
     try {
       const createQueries = [
+        `CREATE TABLE IF NOT EXISTS sys_units (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          kode_unit VARCHAR(50) UNIQUE,
+          nama_unit VARCHAR(255)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
+        
+        `CREATE TABLE IF NOT EXISTS sys_users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(100) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'Viewer',
+          unit_id INT NULL,
+          access_scope VARCHAR(100) DEFAULT 'ALL',
+          is_active TINYINT(1) DEFAULT 1,
+          full_name VARCHAR(255) NULL,
+          nip VARCHAR(50) NULL,
+          email VARCHAR(100) NULL,
+          phone_number VARCHAR(50) NULL,
+          unit_kerja VARCHAR(255) NULL,
+          is_deleted TINYINT(1) DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (unit_id) REFERENCES sys_units(id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
+
         `CREATE TABLE IF NOT EXISTS sys_datasets (
           id VARCHAR(100) PRIMARY KEY,
           dataset_name VARCHAR(255) NOT NULL,
@@ -986,6 +1010,15 @@ export class MySQLAdapter implements DbInterface {
           INSERT INTO sys_datasets (id, dataset_name, dataset_mode, legacy_config, is_active, status, imported_by) 
           VALUES ('ds_legacy_default', 'Legacy Default Dataset', 'LEGACY_RELATIONAL', ?, 1, 'ACTIVE', 'system')
         `, [legacyConfig]);
+      }
+
+      // Check if superadmin exists
+      const [userRows] = await this.pool.query('SELECT COUNT(*) as count FROM sys_users WHERE username = "superadmin"') as any[];
+      if (userRows[0].count === 0) {
+        await this.pool.query(`
+          INSERT INTO sys_users (username, password_hash, role, access_scope, is_active, full_name, nip, email, phone_number, unit_kerja)
+          VALUES ('superadmin', '9ffabbb631bf27666019a2dc70fa82c1:e68e06e02c0bf094209a8f053b6916eb5754658f56ed11dcff65b87c8bfc6e4174bf163c8d3db3113b80959cb7b8f4e4e1e08b9fb64d63a131d6338e1145d786', 'Administrator', 'ALL', 1, 'Tralalelo Tralala', '199508212020011002', 'tripleT@kemenkeu.go.id', '08123456789', 'Inspektorat Jenderal')
+        `);
       }
       return { success: true, message: 'Schema initialization successful including new MySQL entities.' };
     } catch (err: any) {

@@ -26,7 +26,8 @@ import {
   Trash2,
   MessageSquare,
   StopCircle,
-  ArrowRight
+  ArrowRight,
+  ImageIcon
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -53,8 +54,8 @@ export default function AIAssistantWorkspace() {
   const [sessionId, setSessionId] = useState<string>('default');
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
-  // Files
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Files - SEKARANG MENGGUNAKAN ARRAY UNTUK MULTI-FILE
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -122,7 +123,7 @@ export default function AIAssistantWorkspace() {
     setChatFeed([{
       id: 'welcome',
       sender: 'assistant',
-      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau ketik pertanyaan Anda untuk mulai menganalisis.'
+      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau *paste* gambar Anda untuk mulai menganalisis.'
     }]);
   };
 
@@ -160,7 +161,6 @@ export default function AIAssistantWorkspace() {
         delete parsed[sessionToDelete];
         localStorage.setItem('sidata_chat_history', JSON.stringify(parsed));
         
-        // Memastikan state lokal segera di-update agar tombolnya benar-benar hilang dari UI
         setHistoryItems(prev => prev.filter(h => h.sessionId !== sessionToDelete));
         
         if (sessionToDelete === sessionId) {
@@ -174,35 +174,35 @@ export default function AIAssistantWorkspace() {
   const handleNewConversation = () => {
     const newSession = 'session-' + Date.now();
     setSessionId(newSession);
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setInputMsg('');
     setChatFeed([{
       id: 'welcome',
       sender: 'assistant',
-      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau ketik pertanyaan Anda untuk mulai menganalisis.'
+      text: 'Halo! Saya Asisten AI SIDATA. Silakan lampirkan dokumen (PDF/Excel) atau *paste* gambar Anda untuk mulai menganalisis.'
     }]);
   };
 
   const handleSendQuery = async (queryText: string) => {
-    if (!queryText.trim() && !selectedFile) return;
+    if (!queryText.trim() && selectedFiles.length === 0) return;
 
-    const fileToSend = selectedFile;
+    const filesToSend = [...selectedFiles];
     const textToSend = queryText;
     
     setInputMsg('');
-    setSelectedFile(null);
+    setSelectedFiles([]);
     
     const userMsg: ChatMessage = {
       id: 'user-' + Date.now(),
       sender: 'user',
       text: textToSend,
-      fileName: fileToSend?.name
+      fileName: filesToSend.length > 0 ? filesToSend.map(f => f.name).join(', ') : undefined
     };
 
     const newFeed = [...chatFeed, userMsg];
     setChatFeed(newFeed);
     
-    const firstQuery = chatFeed.length <= 1 ? textToSend || (fileToSend ? 'Analisis Dokumen' : '') : '';
+    const firstQuery = chatFeed.length <= 1 ? textToSend || (filesToSend.length > 0 ? 'Analisis Dokumen' : '') : '';
     saveConversation(sessionId, newFeed, firstQuery);
 
     setLoading(true);
@@ -220,11 +220,13 @@ export default function AIAssistantWorkspace() {
       }));
       formData.append('history', JSON.stringify(historyContext));
 
-      if (fileToSend) {
-        formData.append('file', fileToSend);
-      }
+      // APPEND SEMUA FILE KE DALAM FORMDATA
+      filesToSend.forEach(file => {
+        formData.append('file', file);
+      });
 
       const headers = getHeaders();
+      // DI SINI PATH-NYA SUDAH DIPERBAIKI JADI /api/ai/chat
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: headers,
@@ -283,6 +285,32 @@ export default function AIAssistantWorkspace() {
         handleSendQuery(inputMsg);
       }
     }
+  };
+
+  // FUNGSI UNTUK MENANGKAP CTRL+V (PASTE GAMBAR/FILE)
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const pastedFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1 || items[i].type.indexOf('pdf') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          // Buat nama file unik jika dari screenshot clipboard
+          const finalFile = new File([file], `Pasted_Image_${Date.now()}.png`, { type: file.type });
+          pastedFiles.push(finalFile);
+        }
+      }
+    }
+    
+    if (pastedFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...pastedFiles]);
+    }
+  };
+
+  const removeSelectedFile = (indexToRemove: number) => {
+    setSelectedFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const filteredHistory = historyItems.filter(h => h.title.toLowerCase().includes(historySearch.toLowerCase()));
@@ -374,15 +402,54 @@ export default function AIAssistantWorkspace() {
 
           {/* INPUT AREA */}
           <div className="p-3 border-t border-slate-150 dark:border-slate-800 bg-white dark:bg-[#111827] shrink-0">
-            {selectedFile && (<div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 text-[#1D4ED8] dark:text-blue-300 px-3 py-1.5 rounded-lg mb-2 text-xs w-fit max-w-full"><div className="flex items-center gap-2 truncate"><FileIcon className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{selectedFile.name}</span></div><button onClick={() => setSelectedFile(null)} className="text-red-500 hover:bg-red-50 p-1 rounded-full ml-3 shrink-0"><X className="h-4 w-4"/></button></div>)}
+            {/* AREA PREVIEW MULTI FILE */}
+            {selectedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 text-[#1D4ED8] dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs max-w-[200px]">
+                    <div className="flex items-center gap-2 truncate">
+                      {file.type.includes('image') ? <ImageIcon className="h-3.5 w-3.5 shrink-0"/> : <FileIcon className="h-3.5 w-3.5 shrink-0"/>}
+                      <span className="truncate">{file.name}</span>
+                    </div>
+                    <button onClick={() => removeSelectedFile(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded-full ml-2 shrink-0">
+                      <X className="h-3.5 w-3.5"/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="flex items-end gap-2">
-              <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.xlsx,.xls,.csv,image/*,.docx,.txt" onChange={(e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]); }} />
+              <input 
+                type="file" 
+                multiple 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".pdf,.xlsx,.xls,.csv,image/*,.docx,.txt" 
+                onChange={(e) => { 
+                  if (e.target.files) {
+                    setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                }} 
+              />
               <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-slate-600 border dark:border-slate-800 rounded-lg cursor-pointer bg-slate-50 dark:bg-slate-900 transition-colors" title="Lampirkan File"><Paperclip className="h-4 w-4"/></button>
-              <textarea ref={textareaRef} rows={1} value={inputMsg} onChange={(e) => setInputMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tanyakan analisis dokumen..." className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" style={{ resize: 'none' }} />
+              
+              <textarea 
+                ref={textareaRef} 
+                rows={1} 
+                value={inputMsg} 
+                onChange={(e) => setInputMsg(e.target.value)} 
+                onKeyDown={handleKeyDown} 
+                onPaste={handlePaste}
+                placeholder="Tanyakan analisis dokumen atau paste (Ctrl+V) gambar di sini..." 
+                className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" 
+                style={{ resize: 'none' }} 
+              />
+              
               {loading ? (
                 <button onClick={handleStopGeneration} className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-lg cursor-pointer shadow-md transition-colors" title="Hentikan Response"><StopCircle className="h-4.5 w-4.5"/></button>
               ) : (
-                <button onClick={() => handleSendQuery(inputMsg)} disabled={!inputMsg.trim() && !selectedFile} className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg disabled:opacity-50 cursor-pointer shadow-md transition-colors" title="Kirim Pesan"><Send className="h-4.5 w-4.5"/></button>
+                <button onClick={() => handleSendQuery(inputMsg)} disabled={!inputMsg.trim() && selectedFiles.length === 0} className="bg-[#1D4ED8] hover:bg-blue-700 text-white p-2.5 rounded-lg disabled:opacity-50 cursor-pointer shadow-md transition-colors" title="Kirim Pesan"><Send className="h-4.5 w-4.5"/></button>
               )}
             </div>
             <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-2.5 font-medium">
