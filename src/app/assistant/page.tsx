@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useDb } from '@/providers/DbContext';
 import {
   Brain,
@@ -234,14 +236,41 @@ export default function AIAssistantWorkspace() {
                     {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4 fill-white" />}
                   </div>
 
-                  {/* Message Bubble */}
-                  <div className={`rounded-xl p-3.5 text-xs leading-relaxed space-y-2 border ${
-                    isUser
-                      ? 'bg-[#1D4ED8] text-white border-blue-600'
-                      : 'bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-xs'
-                  }`}>
-                    <p className="whitespace-pre-line">{msg.text}</p>
-                  </div>
+{/* Message Bubble */}
+                   <div className={`rounded-xl p-3.5 text-xs leading-relaxed space-y-2 border ${
+                     isUser
+                       ? 'bg-[#1D4ED8] text-white border-blue-600'
+                       : 'bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-xs'
+                   }`}>
+                     {isUser ? (
+                       <p className="whitespace-pre-line">{msg.text}</p>
+                     ) : (
+                       <div className="prose prose-sm dark:prose-invert max-w-none text-slate-800 dark:text-slate-200">
+                         <ReactMarkdown
+                           remarkPlugins={[remarkGfm]}
+                           components={{
+                             h1: ({ children }) => <h1 className="text-base font-bold mt-2 mb-1 text-slate-900 dark:text-white">{children}</h1>,
+                             h2: ({ children }) => <h2 className="text-sm font-bold mt-2 mb-1 text-slate-900 dark:text-white">{children}</h2>,
+                             h3: ({ children }) => <h3 className="text-xs font-bold mt-2 mb-1 text-slate-900 dark:text-white">{children}</h3>,
+                             p: ({ children }) => <p className="my-1">{children}</p>,
+                             ul: ({ children }) => <ul className="list-disc list-inside my-1 space-y-0.5">{children}</ul>,
+                             ol: ({ children }) => <ol className="list-decimal list-inside my-1 space-y-0.5">{children}</ol>,
+                             li: ({ children }) => <li className="text-xs">{children}</li>,
+                             strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                             em: ({ children }) => <em className="italic">{children}</em>,
+                             code: ({ children }) => <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px] font-mono">{children}</code>,
+                             pre: ({ children }) => <pre className="bg-slate-900 dark:bg-slate-950 p-2 rounded overflow-x-auto my-1"><code className="text-[10px] font-mono text-slate-100">{children}</code></pre>,
+                             blockquote: ({ children }) => <blockquote className="border-l-2 border-blue-500 pl-2 italic text-slate-600 dark:text-slate-400 my-1">{children}</blockquote>,
+                             table: ({ children }) => <div className="overflow-x-auto my-1"><table className="min-w-full text-xs border-collapse">{children}</table></div>,
+                             th: ({ children }) => <th className="border border-slate-300 dark:border-slate-600 px-2 py-1 bg-slate-100 dark:bg-slate-800 font-bold">{children}</th>,
+                             td: ({ children }) => <td className="border border-slate-300 dark:border-slate-600 px-2 py-1">{children}</td>,
+                           }}
+                         >
+                           {msg.text}
+                         </ReactMarkdown>
+                       </div>
+                     )}
+                   </div>
                 </div>
               );
             })}

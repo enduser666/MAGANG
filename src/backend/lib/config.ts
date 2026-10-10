@@ -128,6 +128,12 @@ function validateConfig() {
     return;
   }
 
+  // Skip validation when using sandbox driver (no external DB needed)
+  const driver = process.env.DB_DRIVER || 'sandbox';
+  if (driver === 'sandbox') {
+    return;
+  }
+
   if (!process.env.DATABASE_URL) {
     throw new Error('Missing required environment variable: DATABASE_URL');
   }

@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { PrismaClient } from '../generated/prisma/client';
 import { hashPassword } from '../backend/lib/auth';
 import { metricsCollector } from '../backend/lib/observability';
 import { config } from '../backend/lib/config';
@@ -369,10 +368,10 @@ export function validateDatasetSchema(columns: ColumnDefinition[], rows: any[]):
 
 // Dynamic Prisma PostgreSQL Clients cache attached to global object to prevent leaks in Next.js hot-reloads
 const globalForPrisma = global as unknown as {
-  prismaClientsCache: Map<string, PrismaClient>;
+  prismaClientsCache: Map<string, any>;
 };
 
-const prismaClientsCache = globalForPrisma.prismaClientsCache || new Map<string, PrismaClient>();
+const prismaClientsCache = globalForPrisma.prismaClientsCache || new Map<string, any>();
 
 if (config.nodeEnv !== 'production') {
   globalForPrisma.prismaClientsCache = prismaClientsCache;
@@ -1337,7 +1336,8 @@ export function getDbClient(dbType: string, dbConfigBase64: string | null, force
   }
 
   // Get or Create Cached Prisma Client for PostgreSQL
-  let prisma: PrismaClient;
+  const { PrismaClient } = require('@prisma/client');
+  let prisma: any;
   if (prismaClientsCache.has(dbUrl)) {
     prisma = prismaClientsCache.get(dbUrl)!;
   } else {
