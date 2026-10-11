@@ -364,9 +364,9 @@ export function createSandboxClient(dbType: string, dbConfigBase64: string | nul
         unitCounts[u] = (unitCounts[u] || 0) + 1;
       });
       const unitFindingsData = Object.entries(unitCounts)
-        .map(([name, count]) => ({ name, Rekomendasi: count }))
-        .sort((a, b) => b.Rekomendasi - a.Rekomendasi)
-        .slice(0, 10);
+              .map(([name, count]) => ({ name, Temuan: count }))
+              .sort((a, b) => b.Temuan - a.Temuan)
+              .slice(0, 10);
 
       // 3. Jenis Pemeriksaan Stacked Data
       const jenisGroups: Record<string, any> = {};

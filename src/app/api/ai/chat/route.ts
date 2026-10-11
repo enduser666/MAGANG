@@ -7,7 +7,32 @@ import { ApiResponse } from '@/backend/lib/api-response';
 import { withAuth } from '@/backend/lib/auth';
 import axios from 'axios';
 
-const sessionDocumentCache = new Map<string, { fileName: string; content: string; base64?: string; mimeType?: string }>();
+const DOCUMENT_CACHE_TTL_MS = 10 * 60 * 1000;
+
+interface CachedDocument {
+  fileName: string;
+  content: string;
+  base64?: string;
+  mimeType?: string;
+  cachedAt: number;
+}
+
+const sessionDocumentCache = new Map<string, CachedDocument>();
+
+function sanitizeFileName(fileName: string): string {
+  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase() : 'file';
+  return `dokumen.${extension}`;
+}
+
+function getCachedDocument(sessionId: string): CachedDocument | null {
+  const cached = sessionDocumentCache.get(sessionId);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > DOCUMENT_CACHE_TTL_MS) {
+    sessionDocumentCache.delete(sessionId);
+    return null;
+  }
+  return cached;
+}
 
 export const POST = withAuth(async (request: Request, sessionUser: any) => {
   try {
@@ -82,14 +107,17 @@ export const POST = withAuth(async (request: Request, sessionUser: any) => {
         fileName: file.name,
         content: extractedTextFromFile,
         base64: imageBase64,
-        mimeType: imageMimeType
+        mimeType: imageMimeType,
+        cachedAt: Date.now()
       });
-    } else if (sessionDocumentCache.has(sessionId)) {
-      const cachedDoc = sessionDocumentCache.get(sessionId)!;
-      extractedTextFromFile = cachedDoc.content;
-      fileNameUsed = cachedDoc.fileName;
-      imageBase64 = cachedDoc.base64 || '';
-      imageMimeType = cachedDoc.mimeType || '';
+    } else {
+      const cachedDoc = getCachedDocument(sessionId);
+      if (cachedDoc) {
+        extractedTextFromFile = cachedDoc.content;
+        fileNameUsed = cachedDoc.fileName;
+        imageBase64 = cachedDoc.base64 || '';
+        imageMimeType = cachedDoc.mimeType || '';
+      }
     }
 
     let processedDocumentText = extractedTextFromFile;
@@ -99,13 +127,12 @@ export const POST = withAuth(async (request: Request, sessionUser: any) => {
 
     let finalPrompt = message;
     if (processedDocumentText) {
-      finalPrompt = `[DOKUMEN TERLAMPIR: ${fileNameUsed}]\n=== ISI DOKUMEN/TEKS OCR ===\n${processedDocumentText}\n===================\n\n[PERTANYAAN USER]: ${message}\n\nTugasmu: Lakukan analisis tahap demi tahap.`;
+      finalPrompt = `[DOKUMEN TERLAMPIR: ${sanitizeFileName(fileNameUsed)}]\n=== ISI DOKUMEN/TEKS OCR ===\n${processedDocumentText}\n===================\n\n[PERTANYAAN USER]: ${message}\n\nTugasmu: Lakukan analisis tahap demi tahap.`;
     }
 
     const selectedModel = process.env.AI_MODEL || 'openai/gpt-4o-mini';
     
     const systemPrompt = `Kamu adalah Asisten Analitik AI SIDATA Kementerian Keuangan. Kamu sangat teliti, kritis, dan berpatokan murni pada data.
-Pengguna yang sedang bertanya: ${user.username}.
 
 ATURAN MUTLAK ANALISIS DOKUMEN:
 1. BACA DENGAN TELITI: Jangan terburu-buru menyimpulkan. Analisis setiap baris, tabel, gambar, dan keterangan dalam dokumen terlampir.

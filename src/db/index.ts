@@ -20,6 +20,11 @@ export function getDbClient(
   dbConfigBase64: string | null,
   forceSandbox = false
 ): DbInterface {
+  // Priority 1: Sandbox mode (no database needed)
+  if (dbType === 'sandbox' || !dbConfigBase64 || forceSandbox) {
+    return new (require('./sandbox-client').createSandboxClient)(dbType, dbConfigBase64);
+  }
+  // Priority 2: MySQL
   if (!globalForDb.mysqlAdapterInstance) {
     globalForDb.mysqlAdapterInstance = new MySQLAdapter();
   }

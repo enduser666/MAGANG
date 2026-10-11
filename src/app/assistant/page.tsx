@@ -53,6 +53,7 @@ export default function AIAssistantWorkspace() {
   const [historyItems, setHistoryItems] = useState<{sessionId: string, title: string, timestamp: number}[]>([]);
   const [sessionId, setSessionId] = useState<string>('default');
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   // Files - SEKARANG MENGGUNAKAN ARRAY UNTUK MULTI-FILE
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -169,6 +170,15 @@ export default function AIAssistantWorkspace() {
       }
     } catch (e) {}
     setSessionToDelete(null);
+  };
+
+  const handleDeleteAllHistory = () => {
+    try {
+      localStorage.removeItem('sidata_chat_history');
+    } catch (e) {}
+    setHistoryItems([]);
+    handleNewConversation();
+    setConfirmDeleteAll(false);
   };
 
   const handleNewConversation = () => {
@@ -340,6 +350,20 @@ export default function AIAssistantWorkspace() {
         </div>
       )}
 
+      {/* Delete All History Confirmation Modal */}
+      {confirmDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500 mb-4"><AlertOctagon className="h-6 w-6 shrink-0" /><h3 className="text-lg font-bold">Hapus Semua Riwayat</h3></div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">Seluruh riwayat percakapan pada perangkat ini akan dihapus permanen. Data ini tidak dapat dikembalikan.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteAll(false)} className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-200">Batal</button>
+              <button onClick={handleDeleteAllHistory} className="px-4 py-2 text-xs font-bold text-white bg-red-600 rounded-lg cursor-pointer hover:bg-red-700">Ya, Hapus Semua</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* SIDEBAR HISTORY */}
         <div className="lg:col-span-1 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 flex flex-col shadow-xs overflow-hidden">
@@ -359,6 +383,11 @@ export default function AIAssistantWorkspace() {
               </div>
             ))}
           </div>
+          {filteredHistory.length > 0 && (
+            <button onClick={() => setConfirmDeleteAll(true)} className="mt-3 w-full shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors py-2 text-xs font-bold cursor-pointer">
+              <Trash2 className="h-3.5 w-3.5" /> Hapus Semua Riwayat
+            </button>
+          )}
         </div>
 
         {/* CHAT AREA */}
@@ -441,7 +470,7 @@ export default function AIAssistantWorkspace() {
                 onChange={(e) => setInputMsg(e.target.value)} 
                 onKeyDown={handleKeyDown} 
                 onPaste={handlePaste}
-                placeholder="Tanyakan analisis dokumen atau paste (Ctrl+V) gambar di sini..." 
+                placeholder="Tanyakan Analisis dokumen di sini....." 
                 className="flex-1 max-h-32 rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D4ED8] overflow-y-auto" 
                 style={{ resize: 'none' }} 
               />
